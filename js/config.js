@@ -4,7 +4,7 @@
 
 const DEFAULT_CONFIG = {
   // Cấu hình Google Apps Script Web App
-  driveBridgeUrl: "https://script.google.com/macros/s/AKfycbx_DEMO_DEPLOYMENT_URL/exec",
+  driveBridgeUrl: "https://script.google.com/macros/s/AKfycbzM-ad9rvD2-OQYZPazJRWpW5UALaP1dyzZs7p095LEEGRXQSqGSY6eO3TermwhwE4a/exec",
   driveRootFolder: "MINH_CHUNG_CUOC_THI_TRUC_TUYEN",
 
   // Cấu hình Firebase (Dùng để Thống kê Thời gian thực & Google Sign-In)
