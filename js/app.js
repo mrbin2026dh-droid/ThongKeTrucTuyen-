@@ -49,6 +49,9 @@ document.addEventListener("DOMContentLoaded", async () => {
   setupPWA();
   setupUIEvents();
 
+  // Khởi động đồng hồ đếm ngược thời gian thực (chạy nền mỗi 1 giây)
+  setInterval(updateAllLiveCountdowns, 1000);
+
   // Khởi tạo Firebase
   await FirebaseService.init();
 
@@ -59,8 +62,8 @@ document.addEventListener("DOMContentLoaded", async () => {
       AppState.selectedContestId = contestsList[0].id;
     }
     renderContestChips();
-    renderContestSelectors();
     updateContestDetailsSidePanel();
+    updateAllLiveCountdowns();
     refreshSubmissionsListener();
   });
 
@@ -140,12 +143,10 @@ function setupUIEvents() {
     }
   });
 
-  // Selector cuộc thi dropdown
-  const contestSelect = document.getElementById("select-contest");
-  if (contestSelect) {
-    contestSelect.addEventListener("change", (e) => {
-      selectContestById(e.target.value);
-    });
+  // Nút sao chép tin nhắn phát động Zalo 1-chạm
+  const btnCopyZalo = document.getElementById("btn-copy-zalo-launch");
+  if (btnCopyZalo) {
+    btnCopyZalo.addEventListener("click", handleCopyZaloLaunchAnnouncement);
   }
 
   // Tải ảnh & Nén ảnh Canvas
@@ -248,13 +249,67 @@ function switchTab(tabName) {
 }
 
 /**
- * 4. RENDER CONTEST CHIPS (HỌC HỎI TỪ NOTEBOOK+LMS)
+ * TÍNH TOÁN VÀ ĐỊNH DẠNG THỜI GIAN CÒN LẠI (COUNTDOWN)
+ */
+function formatTimeRemaining(deadlineMs) {
+  const now = Date.now();
+  const diff = deadlineMs - now;
+
+  if (isNaN(deadlineMs) || diff <= 0) {
+    return {
+      isExpired: true,
+      isUrgent: false,
+      text: "🚨 Đã hết hạn nộp",
+      pillClass: "countdown-expired"
+    };
+  }
+
+  const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+  const hours = Math.floor((diff / (1000 * 60 * 60)) % 24);
+  const minutes = Math.floor((diff / (1000 * 60)) % 60);
+  const seconds = Math.floor((diff / 1000) % 60);
+
+  if (days > 0) {
+    return {
+      isExpired: false,
+      isUrgent: false,
+      text: `⏳ Còn lại: ${days} ngày ${hours} giờ ${minutes} phút`,
+      pillClass: "countdown-normal"
+    };
+  }
+
+  if (hours > 0) {
+    return {
+      isExpired: false,
+      isUrgent: true,
+      text: `⚡ Khẩn cấp: Còn ${hours}h ${minutes}m ${seconds}s`,
+      pillClass: "countdown-urgent"
+    };
+  }
+
+  return {
+    isExpired: false,
+    isUrgent: true,
+    text: `🔥 Sắp khóa sổ: Còn ${minutes}m ${seconds}s`,
+    pillClass: "countdown-urgent"
+  };
+}
+
+/**
+ * 4. RENDER BỘ THẺ CUỘC THI THÔNG MINH (SMART CONTEST CARDS)
+ * Thiết kế chuẩn Responsive: Tự động xuống dòng đa dòng (break-words),
+ * cấm hoàn toàn cắt chữ (...) trên mobile, tích hợp đồng hồ đếm ngược.
  */
 function renderContestChips() {
-  const container = document.getElementById("contest-chips-container");
+  const container = document.getElementById("contest-cards-container") || document.getElementById("contest-chips-container");
   if (!container) return;
 
   container.textContent = "";
+
+  const countBadge = document.getElementById("badge-active-contests-count");
+  if (countBadge) {
+    countBadge.textContent = `${AppState.contests.length} cuộc thi`;
+  }
 
   if (AppState.contests.length === 0) {
     const emptyNotice = document.createElement("div");
@@ -266,40 +321,74 @@ function renderContestChips() {
 
   AppState.contests.forEach((c) => {
     const isSelected = c.id === AppState.selectedContestId;
-    const deadlineStr = new Date(c.deadline).toLocaleDateString("vi-VN", {
+    const deadlineStr = new Date(c.deadline).toLocaleString("vi-VN", {
       day: "2-digit",
       month: "2-digit",
-      year: "numeric"
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit"
     });
 
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = `contest-chip text-left p-3.5 rounded-xl border flex items-center justify-between gap-3 w-full cursor-pointer ${
+    const startStr = c.startTime
+      ? new Date(c.startTime).toLocaleDateString("vi-VN", {
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric"
+        })
+      : "Mới phát động";
+
+    const timeInfo = formatTimeRemaining(new Date(c.deadline).getTime());
+
+    const card = document.createElement("div");
+    card.role = "button";
+    card.tabIndex = 0;
+    card.className = `contest-card-interactive p-4 rounded-xl border flex flex-col gap-2.5 w-full cursor-pointer transition select-none ${
       isSelected
-        ? "active border-indigo-500 bg-indigo-600/20 text-white"
-        : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800/80"
+        ? "active border-indigo-500 bg-indigo-600/20 text-white shadow-lg shadow-indigo-500/20"
+        : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800/80 hover:border-slate-700"
     }`;
 
-    chip.innerHTML = DOMPurify.sanitize(`
-      <div class="flex items-center gap-3 min-w-0">
-        <div class="w-9 h-9 rounded-lg ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'} flex items-center justify-center text-base shrink-0 font-bold">
-          🎯
+    card.innerHTML = DOMPurify.sanitize(`
+      <div class="flex items-start justify-between gap-3">
+        <div class="flex items-start gap-3 min-w-0">
+          <div class="w-9 h-9 rounded-lg ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'} flex items-center justify-center text-base shrink-0 font-bold mt-0.5">
+            🎯
+          </div>
+          <div class="min-w-0 flex-1">
+            <h3 class="text-sm md:text-base font-bold leading-snug break-words text-white">${escapeHtml(c.title)}</h3>
+            <div class="flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-slate-400 mt-1.5">
+              <span>🗓️ Phát động: <strong class="text-slate-300">${escapeHtml(startStr)}</strong></span>
+              <span>⏰ Hạn chót: <strong class="text-amber-400">${escapeHtml(deadlineStr)}</strong></span>
+            </div>
+          </div>
         </div>
-        <div class="min-w-0">
-          <div class="text-xs md:text-sm font-bold truncate">${escapeHtml(c.title)}</div>
-          <div class="text-[11px] text-slate-400 mt-0.5">Hạn chót: <span class="text-amber-400">${deadlineStr}</span></div>
+        <div class="shrink-0 text-right">
+          ${isSelected
+            ? '<span class="px-2.5 py-1 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/40 text-xs font-bold inline-block">● Đang chọn</span>'
+            : '<span class="text-xs text-slate-400 font-medium hover:text-indigo-300 inline-block">Chọn nộp →</span>'
+          }
         </div>
       </div>
-      <div class="shrink-0 text-right">
-        ${isSelected ? '<span class="text-xs text-indigo-400 font-bold">● Đang chọn</span>' : '<span class="text-xs text-slate-500">Chọn →</span>'}
+      <div class="pt-1 flex items-center justify-between border-t border-slate-800/60 text-[11px]">
+        <span class="countdown-pill ${timeInfo.pillClass} px-2.5 py-0.5 rounded-md font-mono font-bold inline-flex items-center gap-1.5" data-deadline="${escapeHtml(c.deadline)}">
+          ${timeInfo.text}
+        </span>
+        <span class="text-slate-400 text-[11px]">Bấm thẻ để xem chi tiết & nộp</span>
       </div>
     `);
 
-    chip.addEventListener("click", () => {
+    card.addEventListener("click", () => {
       selectContestById(c.id);
     });
 
-    container.appendChild(chip);
+    card.addEventListener("keydown", (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        selectContestById(c.id);
+      }
+    });
+
+    container.appendChild(card);
   });
 }
 
@@ -309,11 +398,7 @@ function renderContestChips() {
 function selectContestById(contestId) {
   AppState.selectedContestId = contestId;
 
-  // Cập nhật selector
-  const select = document.getElementById("select-contest");
-  if (select) select.value = contestId;
-
-  // Cập nhật giao diện chips
+  // Cập nhật giao diện cards
   renderContestChips();
   updateContestDetailsSidePanel();
   refreshSubmissionsListener();
@@ -327,19 +412,53 @@ function updateContestDetailsSidePanel() {
   if (!contest) return;
 
   const titleEl = document.getElementById("contest-title-display");
+  const startEl = document.getElementById("contest-start-display");
   const deadlineEl = document.getElementById("contest-deadline-display");
+  const countdownEl = document.getElementById("contest-countdown-display");
+  const statusBadge = document.getElementById("contest-status-badge");
   const descEl = document.getElementById("contest-desc-display");
   const linkBtn = document.getElementById("btn-official-contest-link");
 
-  const deadlineStr = new Date(contest.deadline).toLocaleDateString("vi-VN", {
+  const startStr = contest.startTime
+    ? new Date(contest.startTime).toLocaleString("vi-VN", {
+        day: "2-digit",
+        month: "2-digit",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit"
+      })
+    : "Đã phát động";
+
+  const deadlineStr = new Date(contest.deadline).toLocaleString("vi-VN", {
     weekday: "long",
     day: "2-digit",
     month: "2-digit",
-    year: "numeric"
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit"
   });
 
+  const timeInfo = formatTimeRemaining(new Date(contest.deadline).getTime());
+
   if (titleEl) titleEl.textContent = contest.title;
+  if (startEl) startEl.textContent = startStr;
   if (deadlineEl) deadlineEl.textContent = deadlineStr;
+
+  if (countdownEl) {
+    countdownEl.textContent = timeInfo.text;
+    countdownEl.className = `countdown-pill ${timeInfo.pillClass} px-3 py-1 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5`;
+  }
+
+  if (statusBadge) {
+    if (timeInfo.isExpired) {
+      statusBadge.textContent = "🔴 Đã hết hạn";
+      statusBadge.className = "px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/10 text-rose-300 border border-rose-500/30";
+    } else {
+      statusBadge.textContent = "🟢 Đang mở";
+      statusBadge.className = "px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30";
+    }
+  }
+
   if (descEl) descEl.textContent = contest.description || "Yêu cầu giáo viên chụp màn hình kết quả sau khi thi xong và gửi lên hệ thống.";
 
   if (linkBtn) {
@@ -352,6 +471,41 @@ function updateContestDetailsSidePanel() {
   }
 
   updateContestProgressRatio();
+}
+
+/**
+ * ĐỒNG HỒ ĐẾM NGƯỢC THỜI GIAN THỰC (CHẠY MỖI GIÂY)
+ */
+function updateAllLiveCountdowns() {
+  const contest = AppState.contests.find((c) => c.id === AppState.selectedContestId);
+  if (contest) {
+    const timeInfo = formatTimeRemaining(new Date(contest.deadline).getTime());
+    const countdownEl = document.getElementById("contest-countdown-display");
+    const statusBadge = document.getElementById("contest-status-badge");
+    if (countdownEl) {
+      countdownEl.textContent = timeInfo.text;
+      countdownEl.className = `countdown-pill ${timeInfo.pillClass} px-3 py-1 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5`;
+    }
+    if (statusBadge) {
+      if (timeInfo.isExpired) {
+        statusBadge.textContent = "🔴 Đã hết hạn";
+        statusBadge.className = "px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-rose-500/10 text-rose-300 border border-rose-500/30";
+      } else {
+        statusBadge.textContent = "🟢 Đang mở";
+        statusBadge.className = "px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30";
+      }
+    }
+  }
+
+  const cardPills = document.querySelectorAll(".countdown-pill[data-deadline]");
+  cardPills.forEach((pill) => {
+    const deadlineAttr = pill.getAttribute("data-deadline");
+    if (deadlineAttr) {
+      const info = formatTimeRemaining(new Date(deadlineAttr).getTime());
+      pill.textContent = info.text;
+      pill.className = `countdown-pill ${info.pillClass} px-2.5 py-0.5 rounded-md font-mono font-bold inline-flex items-center gap-1.5`;
+    }
+  });
 }
 
 /**
@@ -923,26 +1077,30 @@ function checkSubmissionStatusForCurrentTeacher() {
 }
 
 /**
- * 19. RENDER SELECTOR CUỘC THI DROPDOWN
+ * 19. SAO CHÉP TIN NHẮN PHÁT ĐỘNG ZALO 1-CHẠM (DÀNH CHO BGH / ADMIN)
  */
-function renderContestSelectors() {
-  const select = document.getElementById("select-contest");
-  if (!select) return;
+function handleCopyZaloLaunchAnnouncement() {
+  const contest = AppState.contests.find((c) => c.id === AppState.selectedContestId);
+  if (!contest) {
+    alert("Vui lòng chọn một cuộc thi để tạo tin nhắn phát động!");
+    return;
+  }
 
-  select.textContent = "";
-  AppState.contests.forEach((c) => {
-    const opt = document.createElement("option");
-    opt.value = c.id;
-    opt.textContent = c.title;
-    if (c.id === AppState.selectedContestId) {
-      opt.selected = true;
-    }
-    select.appendChild(opt);
-  });
+  const msg = ExportService.generateZaloLaunchAnnouncement(contest);
+
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(msg).then(() => {
+      alert("Đã sao chép tin nhắn phát động cuộc thi vào bộ nhớ tạm!\n\nThầy/cô chỉ việc mở Zalo trường và nhấn Dán (Ctrl + V).");
+    }).catch(() => {
+      prompt("Sao chép nội dung dưới đây để gửi vào Zalo trường:", msg);
+    });
+  } else {
+    prompt("Sao chép nội dung dưới đây để gửi vào Zalo trường:", msg);
+  }
 }
 
 /**
- * 20. ĐÔN ĐỐC QUA ZALO 1-CHẠM
+ * 20. ĐÔN ĐỐC QUA ZALO 1-CHẠM (DANH SÁCH CHƯA NỘP)
  */
 function handleZaloReminder() {
   const contest = AppState.contests.find((c) => c.id === AppState.selectedContestId);
@@ -971,17 +1129,26 @@ function handleExportExcel() {
 }
 
 /**
- * 22. MODAL TẠO CUỘC THI MỚI
+ * 22. MODAL TẠO & PHÁT ĐỘNG CUỘC THI MỚI (BGH / QUẢN TRỊ VIÊN)
  */
 function openCreateContestModal() {
   const modal = document.getElementById("modal-create-contest");
   modal.classList.remove("hidden");
+
+  // Gán thời gian bắt đầu mặc định là thời điểm hiện tại
+  const startInput = document.getElementById("input-contest-start");
+  if (startInput && !startInput.value) {
+    const now = new Date();
+    const localIso = new Date(now.getTime() - now.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+    startInput.value = localIso;
+  }
 
   const form = document.getElementById("form-create-contest");
   form.onsubmit = async (e) => {
     e.preventDefault();
     const title = document.getElementById("input-contest-title").value.trim();
     const url = document.getElementById("input-contest-url").value.trim();
+    const startVal = document.getElementById("input-contest-start") ? document.getElementById("input-contest-start").value : "";
     const deadline = document.getElementById("input-contest-deadline").value;
     const desc = document.getElementById("input-contest-desc").value.trim();
 
@@ -994,12 +1161,13 @@ function openCreateContestModal() {
       await FirebaseService.createContest({
         title: title,
         originalUrl: url,
+        startTime: startVal || new Date().toISOString(),
         deadline: deadline,
         description: desc
       });
       modal.classList.add("hidden");
       form.reset();
-      alert("Tạo cuộc thi mới thành công!");
+      alert("Tạo và phát động cuộc thi mới thành công!");
     } catch (err) {
       alert("Lỗi khi tạo cuộc thi: " + err.message);
     }

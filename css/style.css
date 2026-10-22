@@ -66,23 +66,71 @@ body {
   box-shadow: 0 0 25px rgba(16, 185, 129, 0.35);
 }
 
-/* Chips Tương tác (Học hỏi từ lesson-chip trong NOTEBOOK+LMS) */
-.contest-chip {
-  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+/* THẺ CUỘC THI THÔNG MINH (THAY THẾ HOÀN TOÀN DROPDOWN BỊ CẮT CHỮ) */
+.contest-card-interactive {
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   border: 1px solid rgba(255, 255, 255, 0.08);
-}
-.contest-chip:hover {
-  border-color: rgba(99, 102, 241, 0.5);
-  background: rgba(99, 102, 241, 0.12);
-  transform: translateY(-1px);
-}
-.contest-chip.active {
-  border-color: #6366f1;
-  background: rgba(99, 102, 241, 0.22);
-  box-shadow: 0 0 20px rgba(99, 102, 241, 0.25);
+  background: rgba(15, 23, 42, 0.65);
+  border-radius: 1rem;
+  position: relative;
+  overflow: hidden;
 }
 
-/* Khắc phục hoàn toàn lỗi vỡ layout Bảng Ma Trận (Table Matrix Layout) */
+.contest-card-interactive:hover {
+  border-color: rgba(99, 102, 241, 0.5);
+  background: rgba(99, 102, 241, 0.1);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 24px -6px rgba(0, 0, 0, 0.4);
+}
+
+.contest-card-interactive.active {
+  border-color: #6366f1;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.22) 0%, rgba(139, 92, 246, 0.15) 100%);
+  box-shadow: 0 0 25px rgba(99, 102, 241, 0.3);
+}
+
+.contest-card-interactive.active::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+  background: linear-gradient(to bottom, #60a5fa, #a855f7);
+}
+
+/* Đồng Hồ Đếm Ngược Countdown */
+.countdown-pill {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.countdown-normal {
+  background: rgba(16, 185, 129, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.countdown-urgent {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  animation: pulse-border 1.5s infinite;
+}
+
+.countdown-expired {
+  background: rgba(244, 63, 94, 0.15);
+  color: #fb7185;
+  border: 1px solid rgba(244, 63, 94, 0.35);
+}
+
+@keyframes pulse-border {
+  0%, 100% { border-color: rgba(245, 158, 11, 0.4); }
+  50% { border-color: rgba(245, 158, 11, 0.85); box-shadow: 0 0 10px rgba(245, 158, 11, 0.3); }
+}
+
+/* Khắc phục hoàn toàn lỗi vỡ layout Bảng Ma Trận */
 .matrix-wrapper {
   width: 100%;
   overflow-x: auto;
@@ -92,7 +140,7 @@ body {
 
 .matrix-table {
   width: 100%;
-  min-width: 920px; /* Đảm bảo không bao giờ bị dồn ép cột */
+  min-width: 920px;
   border-collapse: separate;
   border-spacing: 0;
 }
@@ -127,7 +175,7 @@ body {
   white-space: nowrap;
 }
 
-/* Cột Tên Giáo Viên: Hiển thị đẹp, chống tràn */
+/* Cột Tên Giáo Viên */
 .col-teacher-name {
   min-width: 200px;
   max-width: 260px;
@@ -138,7 +186,7 @@ body {
   color: #ffffff;
 }
 
-/* Custom Scrollbar chuẩn sẫm màu */
+/* Custom Scrollbar */
 ::-webkit-scrollbar {
   width: 8px;
   height: 8px;

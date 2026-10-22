@@ -134,6 +134,56 @@ const ExportService = {
     msg += `Xin trân trọng cảm ơn!`;
 
     return msg;
+  },
+
+  /**
+   * Tạo văn bản thông báo phát động cuộc thi mới để gửi vào nhóm Zalo trường
+   * @param {Object} contest
+   */
+  generateZaloLaunchAnnouncement(contest) {
+    const startStr = contest.startTime
+      ? new Date(contest.startTime).toLocaleString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric"
+        })
+      : new Date().toLocaleString("vi-VN", {
+          hour: "2-digit",
+          minute: "2-digit",
+          day: "2-digit",
+          month: "2-digit",
+          year: "numeric"
+        });
+
+    const deadlineStr = new Date(contest.deadline).toLocaleString("vi-VN", {
+      hour: "2-digit",
+      minute: "2-digit",
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    });
+
+    let msg = `📢 [THÔNG BÁO PHÁT ĐỘNG CUỘC THI TRỰC TUYẾN]\n`;
+    msg += `Kính gửi: Toàn thể Cán bộ, Giáo viên, Nhân viên nhà trường\n\n`;
+    msg += `Nhà trường thông báo phát động tham gia cuộc thi:\n`;
+    msg += `🎯 Tên cuộc thi: "${contest.title}"\n`;
+    msg += `🗓️ Thời gian bắt đầu: ${startStr}\n`;
+    msg += `⏰ Hạn chót nộp minh chứng: ${deadlineStr}\n`;
+    if (contest.originalUrl) {
+      msg += `🔗 Link làm bài thi gốc: ${contest.originalUrl}\n`;
+    }
+    if (contest.description) {
+      msg += `📝 Yêu cầu: ${contest.description}\n`;
+    }
+    msg += `\n📌 QUY TRÌNH NỘP MINH CHỨNG TỰ ĐỘNG:\n`;
+    msg += `1. Quý thầy/cô làm bài trên đường link của ban tổ chức.\n`;
+    msg += `2. Thi xong, chụp ảnh màn hình kết quả (có họ tên / điểm / xác nhận hoàn thành).\n`;
+    msg += `3. Mở App "Thống Kê Cuộc Thi Trực Tuyến" chọn cuộc thi và gửi ảnh lên (hệ thống tự động lưu vào Google Drive cá nhân của thầy/cô và cập nhật điểm danh tự động thời gian thực).\n\n`;
+    msg += `Kính đề nghị quý thầy/cô tích cực hưởng ứng và hoàn thành đúng hạn.\nTrân trọng!`;
+
+    return msg;
   }
 };
 

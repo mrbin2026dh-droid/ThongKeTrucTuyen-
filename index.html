@@ -127,29 +127,20 @@
         <section class="lg:col-span-7 space-y-6">
 
           <!-- Card 1: Chọn Cuộc Thi Đang Mở (Contest Chips) -->
+          <!-- Card 1: Chọn Cuộc Thi (Bộ Thẻ Tương Tác - Tự Động Xuống Dòng Đa Dòng, Không Bị Cắt Chữ) -->
           <div class="glass-card p-6 space-y-4 border border-indigo-500/20">
             <div class="flex items-center justify-between">
               <h2 class="text-base font-bold text-white flex items-center gap-2">
                 <span>🎯</span> 1. Chọn Cuộc Thi Cần Nộp Minh Chứng
               </h2>
-              <span class="text-[11px] text-amber-400 bg-amber-400/10 px-2.5 py-0.5 rounded-full border border-amber-400/20 font-semibold">
+              <span id="badge-active-contests-count" class="text-[11px] text-amber-400 bg-amber-400/10 px-2.5 py-0.5 rounded-full border border-amber-400/20 font-semibold">
                 Đang diễn ra
               </span>
             </div>
 
-            <!-- Chips Cuộc Thi Tương Tác Nhanh -->
-            <div id="contest-chips-container" class="grid grid-cols-1 gap-2.5">
-              <!-- Render động qua JavaScript -->
-            </div>
-
-            <!-- Dropdown phụ trợ nếu có nhiều cuộc thi -->
-            <div class="pt-2">
-              <label for="select-contest" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
-                Hoặc chọn từ danh sách đầy đủ:
-              </label>
-              <select id="select-contest" class="w-full bg-slate-900 text-white font-medium text-xs md:text-sm rounded-xl px-4 py-2.5 border border-slate-700 focus:outline-none focus:border-indigo-500 transition">
-                <!-- Nạp tự động -->
-              </select>
+            <!-- Smart Contest Cards Container (Thay thế dropdown native, chống tràn chữ trên màn hình hẹp) -->
+            <div id="contest-cards-container" class="grid grid-cols-1 gap-3">
+              <!-- Render tự động qua JavaScript -->
             </div>
           </div>
 
@@ -245,27 +236,51 @@
         <!-- CỘT PHẢI (5 COLS): CHI TIẾT CUỘC THI & TIẾN ĐỘ THỜI GIAN THỰC -->
         <section class="lg:col-span-5 space-y-6">
 
-          <!-- Card A: Thông Tin Cuộc Thi & Link Làm Bài Gốc -->
+          <!-- Card A: Thông Tin Cuộc Thi, Thời Gian & Phát Động Zalo -->
           <div class="glass-card p-6 space-y-4 border border-indigo-500/20">
-            <h3 class="text-sm font-bold text-white flex items-center gap-2">
-              <span>📢</span> Thông Tin Cuộc Thi
-            </h3>
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <span>📢</span> Thông Tin Cuộc Thi
+              </h3>
+              <span id="contest-status-badge" class="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-emerald-500/10 text-emerald-300 border border-emerald-500/30">
+                🟢 Đang mở
+              </span>
+            </div>
 
             <div id="contest-details-card" class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3">
-              <div id="contest-title-display" class="text-sm font-bold text-white leading-snug">
+              <div id="contest-title-display" class="text-sm md:text-base font-bold text-white leading-snug break-words">
                 Đang tải thông tin cuộc thi...
               </div>
-              <div class="flex items-center gap-2 text-xs text-amber-300">
-                <span>⏰</span> Hạn chót: <strong id="contest-deadline-display">-</strong>
+
+              <!-- Chi tiết thời gian và đồng hồ đếm ngược -->
+              <div class="space-y-1.5 pt-1 text-xs">
+                <div class="flex items-center gap-2 text-slate-300">
+                  <span class="text-indigo-400 font-semibold">🗓️ Bắt đầu:</span>
+                  <span id="contest-start-display" class="font-medium text-slate-200">-</span>
+                </div>
+                <div class="flex items-center gap-2 text-slate-300">
+                  <span class="text-amber-400 font-semibold">⏰ Hạn chót:</span>
+                  <span id="contest-deadline-display" class="font-bold text-amber-300">-</span>
+                </div>
+                <div class="flex items-center gap-2 pt-1">
+                  <span id="contest-countdown-display" class="countdown-pill countdown-normal px-3 py-1 rounded-lg text-xs font-mono font-bold flex items-center gap-1.5">
+                    ⏳ Đang tính thời gian...
+                  </span>
+                </div>
               </div>
-              <p id="contest-desc-display" class="text-xs text-slate-400 leading-relaxed">
+
+              <p id="contest-desc-display" class="text-xs text-slate-400 leading-relaxed break-words pt-1">
                 -
               </p>
 
-              <div class="pt-2">
+              <div class="pt-2 space-y-2.5">
                 <a id="btn-official-contest-link" href="#" target="_blank" class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-indigo-500/20 to-purple-500/20 hover:from-indigo-500/30 hover:to-purple-500/30 text-indigo-300 border border-indigo-500/40 font-bold text-xs flex items-center justify-center gap-2 transition">
                   <span>🔗</span> Mở Đường Link Làm Bài Thi Của Cấp Trên ↗
                 </a>
+
+                <button type="button" id="btn-copy-zalo-launch" class="w-full py-2.5 px-4 rounded-xl bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/40 font-bold text-xs flex items-center justify-center gap-2 transition">
+                  <span>📢</span> Sao Chép Tin Nhắn Phát Động Zalo (1 Chạm)
+                </button>
               </div>
             </div>
           </div>
@@ -467,9 +482,15 @@
           <label class="block font-bold text-slate-300 mb-1">Đường Link Làm Bài Thi Gốc (Của cấp trên):</label>
           <input type="url" id="input-contest-url" placeholder="https://..." class="w-full bg-slate-900 text-white rounded-xl px-3.5 py-2.5 border border-slate-700 focus:outline-none focus:border-indigo-500">
         </div>
-        <div>
-          <label class="block font-bold text-slate-300 mb-1">Hạn Chót Nộp Minh Chứng:</label>
-          <input type="datetime-local" id="input-contest-deadline" required class="w-full bg-slate-900 text-white rounded-xl px-3.5 py-2.5 border border-slate-700 focus:outline-none focus:border-indigo-500">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block font-bold text-slate-300 mb-1">Thời Gian Bắt Đầu Phát Động:</label>
+            <input type="datetime-local" id="input-contest-start" class="w-full bg-slate-900 text-white rounded-xl px-3.5 py-2.5 border border-slate-700 focus:outline-none focus:border-indigo-500">
+          </div>
+          <div>
+            <label class="block font-bold text-slate-300 mb-1">Hạn Chót Nộp Minh Chứng:</label>
+            <input type="datetime-local" id="input-contest-deadline" required class="w-full bg-slate-900 text-white rounded-xl px-3.5 py-2.5 border border-slate-700 focus:outline-none focus:border-indigo-500">
+          </div>
         </div>
         <div>
           <label class="block font-bold text-slate-300 mb-1">Hướng Dẫn / Yêu Cầu Vắn Tắt:</label>
