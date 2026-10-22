@@ -9,13 +9,13 @@ const DEFAULT_CONFIG = {
 
   // Cấu hình Firebase (Dùng để Thống kê Thời gian thực & Google Sign-In)
   firebase: {
-    apiKey: "AIzaSy_DEMO_KEY_CHUA_CAU_HINH",
-    authDomain: "thong-ke-truc-tuyen-cva.firebaseapp.com",
-    databaseURL: "https://thong-ke-truc-tuyen-cva-default-rtdb.firebaseio.com",
-    projectId: "thong-ke-truc-tuyen-cva",
-    storageBucket: "thong-ke-truc-tuyen-cva.appspot.com",
-    messagingSenderId: "123456789012",
-    appId: "1:123456789012:web:abcdef123456"
+    apiKey: "AIzaSyAmzoHdhtc-7iO3xbWxlw-5FElwFqO_Mxc",
+    authDomain: "thongketructuyen.firebaseapp.com",
+    databaseURL: "https://thongketructuyen-default-rtdb.asia-southeast1.firebasedatabase.app",
+    projectId: "thongketructuyen",
+    storageBucket: "thongketructuyen.firebasestorage.app",
+    messagingSenderId: "136286245935",
+    appId: "1:136286245935:web:f3cf62d807e023ba9d22da"
   },
 
   // Danh sách email có quyền Quản trị (Admin)
