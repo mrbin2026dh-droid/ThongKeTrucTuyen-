@@ -275,9 +275,19 @@ const FirebaseService = {
     if (this.isFirebaseActive && this.database) {
       const ref = this.database.ref("contests");
       ref.on("value", (snapshot) => {
-        const val = snapshot.val() || {};
-        const list = Object.keys(val).map((k) => val[k]);
-        callback(list);
+        const val = snapshot.val();
+        if (!val || Object.keys(val).length === 0) {
+          const defaults = this.getDefaultContests();
+          const updates = {};
+          defaults.forEach((c) => {
+            updates[c.id] = c;
+          });
+          ref.update(updates).catch((err) => console.warn("Lỗi nạp cuộc thi ban đầu:", err));
+          callback(defaults);
+        } else {
+          const list = Object.keys(val).map((k) => val[k]);
+          callback(list);
+        }
       });
       return () => ref.off("value");
     } else {

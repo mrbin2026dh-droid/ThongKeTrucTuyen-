@@ -20,26 +20,27 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
   
-  <!-- SheetJS để xuất Excel -->
+  <!-- SheetJS & DOMPurify -->
   <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
-  <!-- DOMPurify để bảo vệ XSS an toàn chuẩn Alibaba -->
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
 
-  <!-- Firebase v8 Compat SDK (Hỗ trợ Auth & Realtime Database mượt mà nhất trên PWA di động) -->
+  <!-- Firebase v8 Compat SDK -->
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-auth.js"></script>
   <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
 
-  <!-- Custom Styles -->
+  <!-- Custom Stylesheet -->
   <link rel="stylesheet" href="./css/style.css">
 </head>
-<body class="p-3 md:p-6 pb-20">
-  <div class="max-w-6xl mx-auto space-y-6">
+<body class="p-3 md:p-6 pb-24">
+  <div class="max-w-7xl mx-auto space-y-6">
 
-    <!-- HEADER SECTION -->
+    <!-- ======================================================== -->
+    <!-- HEADER: LOGO, TIÊU ĐỀ, TRẠNG THÁI & ĐĂNG NHẬP GOOGLE     -->
+    <!-- ======================================================== -->
     <header class="glass-card p-4 md:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4 border border-indigo-500/20 shadow-2xl">
       <div class="flex items-center gap-3.5">
-        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 to-purple-600 flex items-center justify-center text-2xl shadow-lg shadow-indigo-500/30 shrink-0">
+        <div class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-indigo-600 via-purple-600 to-pink-500 flex items-center justify-center text-2xl shadow-lg shadow-indigo-500/30 shrink-0">
           🏆
         </div>
         <div>
@@ -47,26 +48,26 @@
             <h1 class="text-xl md:text-2xl font-extrabold tracking-tight bg-clip-text text-transparent bg-gradient-to-r from-blue-400 via-indigo-300 to-amber-300">
               CVA Thống Kê Cuộc Thi Trực Tuyến
             </h1>
-            <span class="hidden sm:inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/10 text-indigo-300 border border-indigo-500/30">
-              PWA v2.0
+            <span class="hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-500/20 text-indigo-300 border border-indigo-500/40">
+              PWA 2026
             </span>
           </div>
           <p class="text-xs text-slate-400 mt-0.5">
-            Hệ thống tự động theo dõi, thu thập minh chứng vào Google Drive & thống kê thời gian thực
+            Tự động lưu minh chứng vào Google Drive theo từng giáo viên & Thống kê thời gian thực
           </p>
         </div>
       </div>
 
-      <!-- Auth State & Navigation Controls -->
+      <!-- Controls & Auth State -->
       <div class="flex flex-wrap items-center gap-2.5">
-        <!-- PWA Install Button (Hiện trên điện thoại) -->
-        <button id="btn-install-pwa" class="hidden inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition active:scale-95">
+        <!-- Nút Cài đặt App PWA -->
+        <button id="btn-install-pwa" class="hidden inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 text-slate-950 font-bold text-xs shadow-lg shadow-amber-500/20 transition active:scale-95">
           <span>📲</span> Cài Đặt App
         </button>
 
-        <!-- Trạng thái Đăng nhập Google -->
+        <!-- Trạng thái Google Auth -->
         <div id="auth-login-box">
-          <button id="btn-login-google" class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs shadow-md transition active:scale-95">
+          <button id="btn-login-google" class="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-white hover:bg-slate-100 text-slate-900 font-bold text-xs shadow-md transition active:scale-95">
             <svg class="w-4 h-4" viewBox="0 0 24 24">
               <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
               <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
@@ -77,7 +78,7 @@
           </button>
         </div>
 
-        <div id="auth-user-box" class="hidden flex items-center gap-2.5 p-1.5 pl-3 rounded-xl bg-slate-800/80 border border-slate-700">
+        <div id="auth-user-box" class="hidden flex items-center gap-2.5 p-1.5 pl-3 rounded-xl bg-slate-800/90 border border-slate-700">
           <img id="user-avatar-img" class="w-8 h-8 rounded-full border border-indigo-400" alt="Avatar">
           <div class="text-left leading-tight">
             <div id="user-display-name" class="text-xs font-bold text-white truncate max-w-[140px]">Giáo viên</div>
@@ -88,127 +89,235 @@
           </button>
         </div>
 
-        <!-- Cài đặt hệ thống (Settings Gear) -->
+        <!-- Cài đặt hệ thống -->
         <button id="btn-open-settings" title="Cài đặt hệ thống" class="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white border border-slate-700 transition">
           ⚙️
         </button>
       </div>
     </header>
 
-    <!-- NAVIGATION TABS: GIÁO VIÊN NỘP BÀI VS BẢNG QUẢN TRỊ -->
-    <div class="flex items-center justify-between gap-3 border-b border-slate-800 pb-3">
+    <!-- ======================================================== -->
+    <!-- TAB SWITCHER: GIÁO VIÊN NỘP BÀI VS BẢNG QUẢN TRỊ         -->
+    <!-- ======================================================== -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-800 pb-3">
       <div class="flex items-center gap-2 p-1 rounded-2xl bg-slate-900/90 border border-slate-800 shadow-inner">
-        <button id="tab-teacher" class="px-4 py-2 rounded-xl text-sm font-bold bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 transition">
-          📱 Giáo Viên Nộp Bài
+        <button id="tab-teacher" class="px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 transition flex items-center gap-2">
+          <span>📱</span> Giáo Viên Nộp Bài
         </button>
-        <button id="tab-admin" class="px-4 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition">
-          📊 Bảng Quản Trị & Thống Kê
+        <button id="tab-admin" class="px-5 py-2.5 rounded-xl text-xs md:text-sm font-semibold text-slate-400 hover:text-white transition flex items-center gap-2">
+          <span>📊</span> Bảng Quản Trị & Thống Kê (97 GV)
         </button>
       </div>
 
       <!-- Realtime Status Indicator -->
-      <div class="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-medium">
+      <div class="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-medium self-start sm:self-auto">
         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-        <span>Firebase Realtime Online</span>
+        <span>Firebase Realtime & Google Drive Đã Kết Nối</span>
       </div>
     </div>
 
-    <!-- ========================================== -->
-    <!-- VIEW 1: DÀNH CHO GIÁO VIÊN (TEACHER PORTAL) -->
-    <!-- ========================================== -->
+    <!-- ======================================================== -->
+    <!-- VIEW 1: DÀNH CHO GIÁO VIÊN (SÂN KHẤU 2 CỘT CHUẨN NOTEBOOK)-->
+    <!-- ======================================================== -->
     <main id="view-teacher-portal" class="space-y-6">
       
-      <!-- Card Chọn Cuộc Thi & Thông tin chi tiết -->
-      <div class="glass-card p-5 space-y-4 border border-indigo-500/20">
-        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <label for="select-contest" class="text-sm font-bold text-white flex items-center gap-2">
-            <span>🎯</span> Chọn Cuộc Thi Cần Nộp Minh Chứng:
-          </label>
-          <select id="select-contest" class="bg-slate-900 text-white font-medium text-sm rounded-xl px-4 py-2.5 border border-slate-700 focus:outline-none focus:border-indigo-500 transition w-full sm:w-80">
-            <!-- Nạp tự động từ Firebase -->
-          </select>
-        </div>
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-        <!-- Banner Chi tiết Cuộc thi -->
-        <div id="contest-banner-details" class="p-4 rounded-xl bg-indigo-950/40 border border-indigo-800/40 text-xs">
-          <!-- Render thông tin hạn chót và link làm bài -->
-        </div>
+        <!-- CỘT TRÁI (7 COLS): THAO TÁC NỘP MINH CHỨNG -->
+        <section class="lg:col-span-7 space-y-6">
 
-        <!-- Thông báo trạng thái đã nộp của giáo viên (nếu có) -->
-        <div id="teacher-submission-status-box" class="hidden">
-          <!-- Render khi GV đã hoàn thành cuộc thi này -->
-        </div>
-      </div>
-
-      <!-- Card Tải Lên Minh Chứng & Nén Ảnh Canvas -->
-      <div class="glass-card p-6 space-y-5 border border-slate-800">
-        <div>
-          <h2 class="text-base md:text-lg font-bold text-white flex items-center gap-2">
-            <span>📸</span> Tải Lên Ảnh Màn Hình Kết Quả Cuộc Thi
-          </h2>
-          <p class="text-xs text-slate-400 mt-1">
-            Chụp ảnh màn hình điện thoại/máy tính có điểm số hoặc chứng nhận hoàn thành cuộc thi và chọn gửi lên hệ thống.
-          </p>
-          <div id="teacher-folder-notice" class="hidden mt-2 p-2.5 rounded-lg bg-slate-900/90 border border-amber-500/30 text-xs text-slate-300">
-            <!-- Hiển thị thư mục Drive đích của GV -->
-          </div>
-        </div>
-
-        <!-- Vùng Kéo Thả / Chạm Chọn Ảnh -->
-        <div id="drop-zone-upload" class="border-2 border-dashed border-slate-700 hover:border-indigo-500 rounded-2xl p-6 md:p-8 text-center cursor-pointer transition bg-slate-900/40 space-y-3">
-          <input type="file" id="input-evidence-file" accept="image/*" class="hidden">
-
-          <div id="upload-prompt-content" class="space-y-3">
-            <div class="w-16 h-16 rounded-2xl bg-indigo-600/20 text-indigo-400 text-3xl flex items-center justify-center mx-auto border border-indigo-500/30">
-              🖼️
+          <!-- Card 1: Chọn Cuộc Thi Đang Mở (Contest Chips) -->
+          <div class="glass-card p-6 space-y-4 border border-indigo-500/20">
+            <div class="flex items-center justify-between">
+              <h2 class="text-base font-bold text-white flex items-center gap-2">
+                <span>🎯</span> 1. Chọn Cuộc Thi Cần Nộp Minh Chứng
+              </h2>
+              <span class="text-[11px] text-amber-400 bg-amber-400/10 px-2.5 py-0.5 rounded-full border border-amber-400/20 font-semibold">
+                Đang diễn ra
+              </span>
             </div>
+
+            <!-- Chips Cuộc Thi Tương Tác Nhanh -->
+            <div id="contest-chips-container" class="grid grid-cols-1 gap-2.5">
+              <!-- Render động qua JavaScript -->
+            </div>
+
+            <!-- Dropdown phụ trợ nếu có nhiều cuộc thi -->
+            <div class="pt-2">
+              <label for="select-contest" class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1.5">
+                Hoặc chọn từ danh sách đầy đủ:
+              </label>
+              <select id="select-contest" class="w-full bg-slate-900 text-white font-medium text-xs md:text-sm rounded-xl px-4 py-2.5 border border-slate-700 focus:outline-none focus:border-indigo-500 transition">
+                <!-- Nạp tự động -->
+              </select>
+            </div>
+          </div>
+
+          <!-- Card 2: Danh Tính Giáo Viên & Thư Mục Drive Cá Nhân -->
+          <div class="glass-card p-6 space-y-4 border border-slate-800">
+            <h2 class="text-base font-bold text-white flex items-center gap-2">
+              <span>👤</span> 2. Thông Tin Giáo Viên & Thư Mục Lưu
+            </h2>
+
+            <div id="teacher-identity-card" class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 flex items-center justify-between gap-4">
+              <div class="flex items-center gap-3.5">
+                <div class="w-11 h-11 rounded-xl bg-indigo-600/20 border border-indigo-500/40 text-indigo-400 flex items-center justify-center text-xl font-bold">
+                  👨‍🏫
+                </div>
+                <div>
+                  <div id="teacher-card-name" class="text-sm font-bold text-white">Chưa Đăng Nhập</div>
+                  <div id="teacher-card-role" class="text-xs text-slate-400">Vui lòng đăng nhập Google để tự động nhận diện</div>
+                </div>
+              </div>
+              <div id="teacher-card-folder" class="text-right">
+                <span class="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-300 border border-amber-500/20 text-xs font-mono">
+                  📁 Đang chờ nhận diện
+                </span>
+              </div>
+            </div>
+
+            <!-- Hộp cảnh báo nếu giáo viên đã nộp bài này rồi -->
+            <div id="teacher-submission-status-box" class="hidden">
+              <!-- Render động khi đã hoàn thành -->
+            </div>
+          </div>
+
+          <!-- Card 3: Tải Ảnh Chụp Màn Hình & Nén Canvas -->
+          <div class="glass-card p-6 space-y-5 border border-slate-800">
             <div>
-              <div class="text-sm font-bold text-white">Chạm vào đây để chọn ảnh hoặc chụp ảnh mới</div>
-              <p class="text-xs text-slate-400 mt-1">Hỗ trợ JPG, PNG, WebP (Tự động nén siêu nét bằng Canvas)</p>
+              <h2 class="text-base font-bold text-white flex items-center gap-2">
+                <span>📸</span> 3. Tải Lên Ảnh Màn Hình Kết Quả Cuộc Thi
+              </h2>
+              <p class="text-xs text-slate-400 mt-1">
+                Chụp màn hình điểm số / chứng nhận hoàn thành. Bộ nén Canvas sẽ tự động giảm 95% dung lượng để gửi siêu tốc.
+              </p>
             </div>
-            <span class="inline-flex px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 text-xs font-semibold shadow transition">
-              📂 Mở Thư Viện Ảnh
-            </span>
+
+            <!-- Vùng Chạm / Kéo Thả Ảnh -->
+            <div id="drop-zone-upload" class="border-2 border-dashed border-slate-700 hover:border-indigo-500 rounded-2xl p-6 text-center cursor-pointer transition bg-slate-900/40 space-y-3">
+              <input type="file" id="input-evidence-file" accept="image/*" class="hidden">
+
+              <div id="upload-prompt-content" class="space-y-3">
+                <div class="w-14 h-14 rounded-2xl bg-indigo-600/20 text-indigo-400 text-3xl flex items-center justify-center mx-auto border border-indigo-500/30">
+                  🖼️
+                </div>
+                <div>
+                  <div class="text-sm font-bold text-white">Chạm vào đây để chọn ảnh hoặc chụp ảnh mới</div>
+                  <p class="text-xs text-slate-400 mt-1">Hỗ trợ JPG, PNG, WebP (Tự nén Canvas siêu nét)</p>
+                </div>
+                <span class="inline-flex px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-indigo-300 text-xs font-semibold shadow transition">
+                  📂 Mở Thư Viện Ảnh
+                </span>
+              </div>
+
+              <!-- Preview Ảnh Sau Khi Nén -->
+              <div id="image-preview-container" class="hidden space-y-3">
+                <div class="relative inline-block max-w-full">
+                  <img id="preview-img-element" class="max-h-64 rounded-xl mx-auto shadow-2xl border border-slate-700 object-contain" alt="Xem trước">
+                  <button id="btn-remove-preview" class="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg flex items-center justify-center transition">
+                    ✕
+                  </button>
+                </div>
+                <div id="compress-notice" class="text-xs font-mono text-emerald-400">
+                  <!-- Thông báo tỷ lệ nén -->
+                </div>
+              </div>
+            </div>
+
+            <!-- Thanh tiến trình Shimmer khi upload -->
+            <div id="submit-progress-shimmer" class="hidden space-y-2">
+              <div class="w-full h-2.5 rounded-full overflow-hidden bg-slate-900 border border-slate-800">
+                <div class="h-full shimmer-progress rounded-full"></div>
+              </div>
+              <div id="submit-status-text" class="text-center text-xs font-semibold text-indigo-300 animate-pulse">
+                Đang xử lý...
+              </div>
+            </div>
+
+            <!-- Nút Hành Động Chính -->
+            <button id="btn-submit-evidence" class="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:via-indigo-500 hover:to-purple-500 text-white font-extrabold text-base shadow-xl shadow-indigo-600/30 transition active:scale-[0.99] flex items-center justify-center gap-2">
+              <span>🚀</span> GỬI MINH CHỨNG LÊN GOOGLE DRIVE TRƯỜNG
+            </button>
           </div>
 
-          <!-- Xem trước ảnh sau khi chọn -->
-          <div id="image-preview-container" class="hidden space-y-3">
-            <div class="relative inline-block max-w-full">
-              <img id="preview-img-element" class="max-h-72 rounded-xl mx-auto shadow-2xl border border-slate-700 object-contain" alt="Xem trước">
-              <button id="btn-remove-preview" class="absolute -top-3 -right-3 w-8 h-8 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-sm shadow-lg flex items-center justify-center transition">
-                ✕
-              </button>
-            </div>
-            <div id="compress-notice" class="text-xs font-mono text-emerald-400">
-              <!-- Thông báo tỷ lệ nén -->
-            </div>
-          </div>
-        </div>
+        </section>
 
-        <!-- Thanh tiến trình Shimmer khi upload -->
-        <div id="submit-progress-shimmer" class="hidden space-y-2">
-          <div class="w-full h-2 rounded-full overflow-hidden bg-slate-800">
-            <div class="h-full shimmer-progress rounded-full"></div>
-          </div>
-          <div id="submit-status-text" class="text-center text-xs font-semibold text-indigo-300 animate-pulse">
-            Đang xử lý...
-          </div>
-        </div>
+        <!-- CỘT PHẢI (5 COLS): CHI TIẾT CUỘC THI & TIẾN ĐỘ THỜI GIAN THỰC -->
+        <section class="lg:col-span-5 space-y-6">
 
-        <!-- Nút Gửi Minh Chứng Lên Google Drive & Firebase -->
-        <button id="btn-submit-evidence" class="w-full py-4 px-6 rounded-2xl bg-gradient-to-r from-indigo-600 via-indigo-500 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white font-extrabold text-base shadow-xl shadow-indigo-500/25 transition active:scale-[0.99] flex items-center justify-center gap-2">
-          <span>🚀</span> GỬI MINH CHỨNG LÊN GOOGLE DRIVE TRƯỜNG
-        </button>
+          <!-- Card A: Thông Tin Cuộc Thi & Link Làm Bài Gốc -->
+          <div class="glass-card p-6 space-y-4 border border-indigo-500/20">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <span>📢</span> Thông Tin Cuộc Thi
+            </h3>
+
+            <div id="contest-details-card" class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3">
+              <div id="contest-title-display" class="text-sm font-bold text-white leading-snug">
+                Đang tải thông tin cuộc thi...
+              </div>
+              <div class="flex items-center gap-2 text-xs text-amber-300">
+                <span>⏰</span> Hạn chót: <strong id="contest-deadline-display">-</strong>
+              </div>
+              <p id="contest-desc-display" class="text-xs text-slate-400 leading-relaxed">
+                -
+              </p>
+
+              <div class="pt-2">
+                <a id="btn-official-contest-link" href="#" target="_blank" class="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-indigo-500/20 to-purple-500/20 hover:from-indigo-500/30 hover:to-purple-500/30 text-indigo-300 border border-indigo-500/40 font-bold text-xs flex items-center justify-center gap-2 transition">
+                  <span>🔗</span> Mở Đường Link Làm Bài Thi Của Cấp Trên ↗
+                </a>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card B: Tiến Độ Toàn Trường Trong Cuộc Thi Này -->
+          <div class="glass-card p-6 space-y-4 border border-slate-800">
+            <div class="flex items-center justify-between">
+              <h3 class="text-sm font-bold text-white flex items-center gap-2">
+                <span>📊</span> Tiến Độ Toàn Trường
+              </h3>
+              <span id="badge-contest-percent" class="px-2.5 py-0.5 rounded-full text-xs font-extrabold bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+                0%
+              </span>
+            </div>
+
+            <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 space-y-3">
+              <div class="flex justify-between text-xs text-slate-300">
+                <span>Đã hoàn thành:</span>
+                <span id="text-contest-ratio" class="font-bold text-emerald-400">0 / 97 CB-GV</span>
+              </div>
+              <div class="w-full h-3 rounded-full bg-slate-950 overflow-hidden border border-slate-800">
+                <div id="bar-contest-progress" class="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-400 rounded-full transition-all duration-500" style="width: 0%"></div>
+              </div>
+              <div class="flex justify-between text-[11px] text-slate-500 font-mono">
+                <span>Khởi động</span>
+                <span>Mục tiêu 100%</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Card C: Danh Sách Cuộc Thi Thầy/Cô Đã Nộp -->
+          <div class="glass-card p-6 space-y-4 border border-slate-800">
+            <h3 class="text-sm font-bold text-white flex items-center gap-2">
+              <span>🗂️</span> Minh Chứng Cá Nhân Đã Lưu Trên Drive
+            </h3>
+            <div id="teacher-history-container" class="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+              <div class="text-xs text-slate-500 text-center py-4">Chưa có minh chứng nào được nộp.</div>
+            </div>
+          </div>
+
+        </section>
+
       </div>
 
     </main>
 
-    <!-- ============================================== -->
-    <!-- VIEW 2: DÀNH CHO QUẢN TRỊ VIÊN (ADMIN DASHBOARD) -->
-    <!-- ============================================== -->
+    <!-- ======================================================== -->
+    <!-- VIEW 2: DÀNH CHO QUẢN TRỊ VIÊN (ADMIN DASHBOARD TOÀN DIỆN)-->
+    <!-- ======================================================== -->
     <main id="view-admin-dashboard" class="hidden space-y-6">
 
-      <!-- Hàng Thống Kê Tiến Độ Realtime -->
+      <!-- Hàng 4 Thẻ Thống Kê Tiến Độ Realtime -->
       <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div class="glass-card p-5 border border-indigo-500/30 bg-gradient-to-br from-indigo-500/10 to-transparent">
           <div class="text-xs font-bold text-indigo-300 uppercase tracking-wider">Tỷ Lệ Toàn Trường</div>
@@ -237,7 +346,7 @@
         </div>
       </div>
 
-      <!-- Thanh Thao Tác Quản Trị (Admin Actions Bar) -->
+      <!-- Thanh Thao Tác Quản Trị -->
       <div class="glass-card p-4 flex flex-col lg:flex-row lg:items-center justify-between gap-4 border border-slate-800">
         <!-- Bộ lọc và tìm kiếm -->
         <div class="flex flex-wrap items-center gap-2.5 flex-1">
@@ -256,12 +365,12 @@
         <!-- Các Nút Hành Động -->
         <div class="flex flex-wrap items-center gap-2">
           <!-- Đôn đốc Zalo 1-Chạm -->
-          <button id="btn-zalo-reminder" class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 text-white font-bold text-xs shadow-md transition active:scale-95">
+          <button id="btn-zalo-reminder" class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 text-white font-bold text-xs shadow-md transition active:scale-95">
             <span>📢</span> Đôn Đốc Zalo 1-Chạm
           </button>
 
           <!-- Xuất Báo Cáo Excel -->
-          <button id="btn-export-excel" class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold text-xs shadow-md transition active:scale-95">
+          <button id="btn-export-excel" class="inline-flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 text-white font-bold text-xs shadow-md transition active:scale-95">
             <span>📥</span> Xuất Báo Cáo Excel
           </button>
 
@@ -272,29 +381,30 @@
         </div>
       </div>
 
-      <!-- BẢNG MA TRẬN 97 GIÁO VIÊN THEO DÕI THỜI GIAN THỰC -->
-      <div class="glass-card border border-slate-800 overflow-hidden shadow-2xl">
-        <div class="p-4 border-b border-slate-800 flex items-center justify-between">
+      <!-- BẢNG MA TRẬN 97 GIÁO VIÊN (ĐÃ SỬA LỖI TRÀN CỘT VÀ CO CỤM) -->
+      <div class="glass-card border border-slate-800 shadow-2xl p-4">
+        <div class="pb-3 border-b border-slate-800/80 flex items-center justify-between">
           <h3 class="text-sm font-bold text-white flex items-center gap-2">
             <span>📋</span> Bảng Ma Trận Theo Dõi Toàn Trường (97 CB-GV-NV)
           </h3>
-          <span class="text-xs text-slate-400">Tự động cập nhật không cần F5</span>
+          <span class="text-xs text-slate-400">Đồng bộ Firebase Realtime tự động</span>
         </div>
 
-        <div class="matrix-container">
-          <table class="w-full text-left border-collapse matrix-table">
+        <!-- Bọc trong matrix-wrapper chống co cụm và vỡ layout -->
+        <div class="matrix-wrapper mt-2">
+          <table class="matrix-table">
             <thead>
-              <tr class="text-[11px] font-extrabold uppercase tracking-wider text-slate-400 border-b border-slate-800">
-                <th class="p-3 text-center w-12">STT</th>
-                <th class="p-3">Họ và Tên</th>
-                <th class="p-3 w-32">Chức Vụ</th>
-                <th class="p-3 text-center w-28">Trạng Thái</th>
-                <th class="p-3 text-center w-28">Giờ Nộp</th>
-                <th class="p-3">Thư Mục Google Drive</th>
-                <th class="p-3 text-center w-24">Minh Chứng</th>
+              <tr>
+                <th style="width: 50px; text-align: center;">STT</th>
+                <th style="width: 220px;">Họ và Tên</th>
+                <th style="width: 130px;">Chức Vụ</th>
+                <th style="width: 140px; text-align: center;">Trạng Thái</th>
+                <th style="width: 130px; text-align: center;">Giờ Nộp</th>
+                <th style="width: 220px;">Thư Mục Google Drive</th>
+                <th style="width: 120px; text-align: center;">Minh Chứng</th>
               </tr>
             </thead>
-            <tbody id="admin-matrix-tbody" class="divide-y divide-slate-800/40 text-xs">
+            <tbody id="admin-matrix-tbody">
               <!-- Render 97 hàng giáo viên -->
             </tbody>
           </table>
@@ -305,19 +415,19 @@
 
   </div>
 
-  <!-- ========================================== -->
-  <!-- MODALS (CÁC CỬA SỔ BẬT LÊN)                -->
-  <!-- ========================================== -->
+  <!-- ======================================================== -->
+  <!-- MODALS                                                   -->
+  <!-- ======================================================== -->
 
   <!-- Modal 1: Thông báo Nộp bài thành công -->
-  <div id="modal-success" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+  <div id="modal-success" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
     <div class="glass-card max-w-md w-full p-6 border border-emerald-500/40 shadow-2xl" id="modal-success-body">
-      <!-- Nội dung nạp tự động qua JavaScript -->
+      <!-- Dynamic Content -->
     </div>
   </div>
 
   <!-- Modal 2: Khóa liên kết Danh tính Gmail 1-Lần -->
-  <div id="modal-identity-binding" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-fade-in">
+  <div id="modal-identity-binding" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md">
     <div class="glass-card max-w-lg w-full p-6 border border-indigo-500/40 shadow-2xl space-y-4">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <div>
@@ -325,12 +435,12 @@
             <span>👤</span> Xác Nhận Danh Tính Giáo Viên (1 Lần Duy Nhất)
           </h3>
           <p class="text-xs text-slate-400 mt-0.5">
-            Chọn đúng tên thầy/cô trong danh sách trường để liên kết vĩnh viễn với tài khoản Gmail này.
+            Chọn đúng tên thầy/cô trong danh sách 97 CB-GV để liên kết với tài khoản Gmail này.
           </p>
         </div>
       </div>
 
-      <input type="text" id="input-binding-search" placeholder="🔍 Gõ tên hoặc số thứ tự của thầy/cô..." class="w-full bg-slate-900 text-white text-xs rounded-xl px-4 py-2.5 border border-slate-700 focus:outline-none focus:border-indigo-500">
+      <input type="text" id="input-binding-search" placeholder="🔍 Gõ tên hoặc số thứ tự..." class="w-full bg-slate-900 text-white text-xs rounded-xl px-4 py-2.5 border border-slate-700 focus:outline-none focus:border-indigo-500">
 
       <div id="binding-teachers-list" class="max-h-72 overflow-y-auto space-y-2 pr-1">
         <!-- Render 97 thầy cô để chọn -->
@@ -339,7 +449,7 @@
   </div>
 
   <!-- Modal 3: Thêm Cuộc Thi Mới -->
-  <div id="modal-create-contest" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in">
+  <div id="modal-create-contest" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
     <div class="glass-card max-w-lg w-full p-6 border border-indigo-500/40 shadow-2xl space-y-4">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <h3 class="text-base font-bold text-white flex items-center gap-2">
@@ -378,8 +488,8 @@
     </div>
   </div>
 
-  <!-- Modal 4: Cài Đặt Hệ Thống (Firebase & Google Drive Bridge) -->
-  <div id="modal-settings" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm animate-fade-in">
+  <!-- Modal 4: Cài Đặt Hệ Thống -->
+  <div id="modal-settings" class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-sm">
     <div class="glass-card max-w-xl w-full p-6 border border-slate-700 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
       <div class="flex items-center justify-between border-b border-slate-800 pb-3">
         <h3 class="text-base font-bold text-white flex items-center gap-2">
@@ -394,7 +504,7 @@
           <div class="font-bold text-indigo-300 flex items-center gap-1.5">
             <span>📁</span> Google Apps Script Web App URL (Cầu nối Drive):
           </div>
-          <input type="text" id="input-cfg-drive-url" placeholder="https://script.google.com/macros/s/AKfy.../exec" class="w-full bg-slate-950 text-white rounded-lg px-3 py-2 border border-slate-700 font-mono text-[11px]">
+          <input type="text" id="input-cfg-drive-url" class="w-full bg-slate-950 text-white rounded-lg px-3 py-2 border border-slate-700 font-mono text-[11px]">
           <p class="text-[11px] text-slate-400">
             Dán link Web App từ Google Apps Script đã triển khai trên Google Drive của trường.
           </p>
@@ -440,7 +550,7 @@
     </div>
   </div>
 
-  <!-- SCRIPTS APPLICATION LOGIC -->
+  <!-- SCRIPTS -->
   <script src="./js/teachers_data.js"></script>
   <script src="./js/config.js"></script>
   <script src="./js/drive_service.js"></script>

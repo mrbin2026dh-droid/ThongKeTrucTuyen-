@@ -1,18 +1,18 @@
-const DOMPurify = (typeof window !== "undefined" && window.DOMPurify) || { sanitize: (s) => s };
 /**
- * BỘ ĐIỀU KHIỂN CHÍNH (APP CONTROLLER)
+ * BỘ ĐIỀU KHIỂN CHÍNH (APP CONTROLLER) - PHIÊN BẢN SÂN KHẤU TƯƠNG TÁC
  * Ứng dụng PWA: Theo dõi & Thống kê Cuộc thi Trực tuyến
  */
 
+const DOMPurify = (typeof window !== "undefined" && window.DOMPurify) || { sanitize: (s) => s };
+
 // Trạng thái ứng dụng (Application State)
 const AppState = {
-  activeTab: "teacher_portal", // "teacher_portal" | "admin_dashboard" | "settings"
+  activeTab: "teacher_portal", // "teacher_portal" | "admin_dashboard"
   currentUser: null,
   currentTeacher: null,
   contests: [],
   selectedContestId: "",
   submissions: {},
-  pendingFile: null,
   compressedImage: null,
   isAdmin: false,
   searchQuery: "",
@@ -22,7 +22,18 @@ const AppState = {
   unsubscribeSubmissions: null
 };
 
-// Hàm tiện ích: Khử mã độc XSS
+// Tiện ích: Khử mã độc XSS
+
+function safeTableSanitize(purifier, cellsHtml) {
+  if (!purifier || typeof purifier.sanitize !== "function") return cellsHtml;
+  const wrapped = "<table><tbody><tr>" + cellsHtml + "</tr></tbody></table>";
+  const clean = purifier.sanitize(wrapped);
+  const temp = document.createElement("div");
+  temp.innerHTML = DOMPurify.sanitize(clean);
+  const tr = temp.querySelector("tr");
+  return tr ? tr.innerHTML : cellsHtml;
+}
+
 function escapeHtml(str) {
   if (str === null || str === undefined) return "";
   return String(str)
@@ -33,13 +44,12 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
-// KHỞI ĐỘNG ỨNG DỤNG KHI TẢI XONG TRANG
+// KHỞI ĐỘNG ỨNG DỤNG
 document.addEventListener("DOMContentLoaded", async () => {
   setupPWA();
   setupUIEvents();
-  renderContestSelectors();
 
-  // Khởi tạo kết nối Firebase
+  // Khởi tạo Firebase
   await FirebaseService.init();
 
   // Lắng nghe danh sách cuộc thi
@@ -48,51 +58,46 @@ document.addEventListener("DOMContentLoaded", async () => {
     if (contestsList.length > 0 && !AppState.selectedContestId) {
       AppState.selectedContestId = contestsList[0].id;
     }
+    renderContestChips();
     renderContestSelectors();
-    updateContestDetailsBanner();
+    updateContestDetailsSidePanel();
     refreshSubmissionsListener();
   });
 
-  // Lắng nghe sự kiện đăng nhập / đổi tài khoản
+  // Lắng nghe thay đổi đăng nhập Google
   window.addEventListener("cva-auth-state-changed", (e) => {
     const { user, teacher } = e.detail;
     AppState.currentUser = user;
     AppState.currentTeacher = teacher;
     updateAuthUI();
-
-    // Kiểm tra quyền Admin
     checkAdminRole(user);
+    renderTeacherHistory();
 
-    // Nếu chưa liên kết hồ sơ, mở modal chọn tên lần đầu
     if (user && !teacher) {
       openIdentityBindingModal();
     }
   });
 
-  // Kiểm tra đăng nhập ban đầu
   updateAuthUI();
 });
 
 /**
- * 1. CẤU HÌNH PWA & NÚT CÀI ĐẶT
+ * 1. PWA INSTALL HANDLER
  */
 function setupPWA() {
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("./sw.js").catch((err) => {
-        console.warn("Đăng ký Service Worker thất bại:", err);
+        console.warn("Lỗi đăng ký Service Worker:", err);
       });
     });
   }
 
-  // Bắt sự kiện có thể cài đặt app
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     AppState.deferredInstallPrompt = e;
     const installBtn = document.getElementById("btn-install-pwa");
-    if (installBtn) {
-      installBtn.classList.remove("hidden");
-    }
+    if (installBtn) installBtn.classList.remove("hidden");
   });
 
   const installBtn = document.getElementById("btn-install-pwa");
@@ -113,15 +118,14 @@ function setupPWA() {
 }
 
 /**
- * 2. THIẾT LẬP CÁC SỰ KIỆN GIAO DIỆN (UI EVENTS)
+ * 2. THIẾT LẬP CÁC SỰ KIỆN GIAO DIỆN
  */
 function setupUIEvents() {
-  // Chuyển Tab: Giáo viên nộp bài / Quản trị viên
   document.getElementById("tab-teacher").addEventListener("click", () => switchTab("teacher_portal"));
   document.getElementById("tab-admin").addEventListener("click", () => switchTab("admin_dashboard"));
   document.getElementById("btn-open-settings").addEventListener("click", openSettingsModal);
 
-  // Đăng nhập / Đăng xuất Google
+  // Google Login / Logout
   document.getElementById("btn-login-google").addEventListener("click", async () => {
     try {
       await FirebaseService.signInWithGoogle();
@@ -136,13 +140,11 @@ function setupUIEvents() {
     }
   });
 
-  // Chọn cuộc thi
+  // Selector cuộc thi dropdown
   const contestSelect = document.getElementById("select-contest");
   if (contestSelect) {
     contestSelect.addEventListener("change", (e) => {
-      AppState.selectedContestId = e.target.value;
-      updateContestDetailsBanner();
-      refreshSubmissionsListener();
+      selectContestById(e.target.value);
     });
   }
 
@@ -154,7 +156,6 @@ function setupUIEvents() {
     dropZone.addEventListener("click", () => fileInput.click());
     fileInput.addEventListener("change", handleFileSelected);
 
-    // Kéo thả ảnh
     dropZone.addEventListener("dragover", (e) => {
       e.preventDefault();
       dropZone.classList.add("border-indigo-500", "bg-indigo-500/10");
@@ -174,13 +175,11 @@ function setupUIEvents() {
     });
   }
 
-  // Nút xóa ảnh đã chọn
   const btnRemoveImg = document.getElementById("btn-remove-preview");
   if (btnRemoveImg) {
     btnRemoveImg.addEventListener("click", resetImageUpload);
   }
 
-  // Nút Gửi Minh Chứng Lên Drive & Firebase
   const btnSubmit = document.getElementById("btn-submit-evidence");
   if (btnSubmit) {
     btnSubmit.addEventListener("click", handleSubmitEvidence);
@@ -223,7 +222,7 @@ function setupUIEvents() {
 }
 
 /**
- * 3. CHUYỂN ĐỔI TAB (GIÁO VIÊN NỘP BÀI <-> QUẢN TRỊ)
+ * 3. CHUYỂN TAB (GIÁO VIÊN NỘP BÀI <-> BẢNG QUẢN TRỊ)
  */
 function switchTab(tabName) {
   AppState.activeTab = tabName;
@@ -236,31 +235,149 @@ function switchTab(tabName) {
   if (tabName === "teacher_portal") {
     teacherPortal.classList.remove("hidden");
     adminDashboard.classList.add("hidden");
-    tabTeacher.className = "px-4 py-2 rounded-xl text-sm font-bold bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 transition";
-    tabAdmin.className = "px-4 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition";
+    tabTeacher.className = "px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 transition flex items-center gap-2";
+    tabAdmin.className = "px-5 py-2.5 rounded-xl text-xs md:text-sm font-semibold text-slate-400 hover:text-white transition flex items-center gap-2";
   } else {
-    // Nếu vào tab Admin mà chưa mở khóa quyền
-    if (!AppState.isAdmin) {
-      const pin = prompt("Khu vực Quản trị viên nhà trường: Nhập mã PIN quản trị để tiếp tục (Mặc định: 2026):");
-      const config = getAppConfig();
-      if (pin !== config.adminPin) {
-        alert("Mã PIN không đúng. Truy cập bị từ chối.");
-        return;
-      }
-      AppState.isAdmin = true;
-    }
-
     teacherPortal.classList.add("hidden");
     adminDashboard.classList.remove("hidden");
-    tabAdmin.className = "px-4 py-2 rounded-xl text-sm font-bold bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 transition";
-    tabTeacher.className = "px-4 py-2 rounded-xl text-sm font-semibold text-slate-400 hover:text-white transition";
+    tabAdmin.className = "px-5 py-2.5 rounded-xl text-xs md:text-sm font-bold bg-indigo-600 text-white shadow-lg shadow-indigo-500/30 transition flex items-center gap-2";
+    tabTeacher.className = "px-5 py-2.5 rounded-xl text-xs md:text-sm font-semibold text-slate-400 hover:text-white transition flex items-center gap-2";
 
     renderAdminMatrix();
   }
 }
 
 /**
- * 4. CẬP NHẬT GIAO DIỆN XÁC THỰC (AUTH UI)
+ * 4. RENDER CONTEST CHIPS (HỌC HỎI TỪ NOTEBOOK+LMS)
+ */
+function renderContestChips() {
+  const container = document.getElementById("contest-chips-container");
+  if (!container) return;
+
+  container.textContent = "";
+
+  if (AppState.contests.length === 0) {
+    const emptyNotice = document.createElement("div");
+    emptyNotice.className = "p-4 rounded-xl bg-slate-900/60 border border-slate-800 text-center text-xs text-slate-400";
+    emptyNotice.textContent = "Hiện chưa có cuộc thi nào được phát động.";
+    container.appendChild(emptyNotice);
+    return;
+  }
+
+  AppState.contests.forEach((c) => {
+    const isSelected = c.id === AppState.selectedContestId;
+    const deadlineStr = new Date(c.deadline).toLocaleDateString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric"
+    });
+
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = `contest-chip text-left p-3.5 rounded-xl border flex items-center justify-between gap-3 w-full cursor-pointer ${
+      isSelected
+        ? "active border-indigo-500 bg-indigo-600/20 text-white"
+        : "border-slate-800 bg-slate-900/60 text-slate-300 hover:bg-slate-800/80"
+    }`;
+
+    chip.innerHTML = DOMPurify.sanitize(`
+      <div class="flex items-center gap-3 min-w-0">
+        <div class="w-9 h-9 rounded-lg ${isSelected ? 'bg-indigo-600 text-white' : 'bg-slate-800 text-slate-400'} flex items-center justify-center text-base shrink-0 font-bold">
+          🎯
+        </div>
+        <div class="min-w-0">
+          <div class="text-xs md:text-sm font-bold truncate">${escapeHtml(c.title)}</div>
+          <div class="text-[11px] text-slate-400 mt-0.5">Hạn chót: <span class="text-amber-400">${deadlineStr}</span></div>
+        </div>
+      </div>
+      <div class="shrink-0 text-right">
+        ${isSelected ? '<span class="text-xs text-indigo-400 font-bold">● Đang chọn</span>' : '<span class="text-xs text-slate-500">Chọn →</span>'}
+      </div>
+    `);
+
+    chip.addEventListener("click", () => {
+      selectContestById(c.id);
+    });
+
+    container.appendChild(chip);
+  });
+}
+
+/**
+ * 5. CHỌN CUỘC THI BẰNG ID
+ */
+function selectContestById(contestId) {
+  AppState.selectedContestId = contestId;
+
+  // Cập nhật selector
+  const select = document.getElementById("select-contest");
+  if (select) select.value = contestId;
+
+  // Cập nhật giao diện chips
+  renderContestChips();
+  updateContestDetailsSidePanel();
+  refreshSubmissionsListener();
+}
+
+/**
+ * 6. CẬP NHẬT THÔNG TIN CHI TIẾT CUỘC THI Ở CỘT PHẢI
+ */
+function updateContestDetailsSidePanel() {
+  const contest = AppState.contests.find((c) => c.id === AppState.selectedContestId);
+  if (!contest) return;
+
+  const titleEl = document.getElementById("contest-title-display");
+  const deadlineEl = document.getElementById("contest-deadline-display");
+  const descEl = document.getElementById("contest-desc-display");
+  const linkBtn = document.getElementById("btn-official-contest-link");
+
+  const deadlineStr = new Date(contest.deadline).toLocaleDateString("vi-VN", {
+    weekday: "long",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric"
+  });
+
+  if (titleEl) titleEl.textContent = contest.title;
+  if (deadlineEl) deadlineEl.textContent = deadlineStr;
+  if (descEl) descEl.textContent = contest.description || "Yêu cầu giáo viên chụp màn hình kết quả sau khi thi xong và gửi lên hệ thống.";
+
+  if (linkBtn) {
+    if (contest.originalUrl) {
+      linkBtn.href = contest.originalUrl;
+      linkBtn.classList.remove("hidden");
+    } else {
+      linkBtn.classList.add("hidden");
+    }
+  }
+
+  updateContestProgressRatio();
+}
+
+/**
+ * 7. CẬP NHẬT TỶ LỆ TIẾN ĐỘ CUỘC THI HIỆN TẠI
+ */
+function updateContestProgressRatio() {
+  const submissions = AppState.submissions || {};
+  let count = 0;
+  TEACHERS_DATABASE.forEach((t) => {
+    if (submissions[t.id]) count++;
+  });
+
+  const total = TEACHERS_DATABASE.length;
+  const percent = total > 0 ? ((count / total) * 100).toFixed(1) : "0.0";
+
+  const badgePercent = document.getElementById("badge-contest-percent");
+  const textRatio = document.getElementById("text-contest-ratio");
+  const progressBar = document.getElementById("bar-contest-progress");
+
+  if (badgePercent) badgePercent.textContent = `${percent}%`;
+  if (textRatio) textRatio.textContent = `${count} / ${total} CB-GV`;
+  if (progressBar) progressBar.style.width = `${percent}%`;
+}
+
+/**
+ * 8. CẬP NHẬT GIAO DIỆN ĐĂNG NHẬP (AUTH UI)
  */
 function updateAuthUI() {
   const user = AppState.currentUser;
@@ -271,7 +388,10 @@ function updateAuthUI() {
   const userNameEl = document.getElementById("user-display-name");
   const userRoleEl = document.getElementById("user-role-badge");
   const userAvatarEl = document.getElementById("user-avatar-img");
-  const userFolderNotice = document.getElementById("teacher-folder-notice");
+
+  const cardName = document.getElementById("teacher-card-name");
+  const cardRole = document.getElementById("teacher-card-role");
+  const cardFolder = document.getElementById("teacher-card-folder");
 
   if (user && teacher) {
     loginBox.classList.add("hidden");
@@ -286,30 +406,50 @@ function updateAuthUI() {
       userAvatarEl.classList.add("hidden");
     }
 
-    // Hiển thị thư mục Drive đích sẽ được lưu
-    if (userFolderNotice) {
-      userFolderNotice.innerHTML = DOMPurify.sanitize(`Thư mục lưu minh chứng trên Google Drive: <strong class="text-amber-400">📁 ${escapeHtml(teacher.folderName)}</strong>`);
-      userFolderNotice.classList.remove("hidden");
+    if (cardName) cardName.textContent = teacher.name;
+    if (cardRole) cardRole.textContent = `${teacher.role} • STT: ${teacher.stt} • Đã liên kết Gmail`;
+    if (cardFolder) {
+      cardFolder.innerHTML = DOMPurify.sanitize(`
+        <span class="px-3 py-1.5 rounded-xl bg-amber-500/10 text-amber-300 border border-amber-500/30 text-xs font-mono font-bold">
+          📁 ${escapeHtml(teacher.folderName)}
+        </span>
+      `);
     }
   } else if (user && !teacher) {
-    // Đã đăng nhập Google nhưng chưa gán với hồ sơ giáo viên
     loginBox.classList.add("hidden");
     userBox.classList.remove("hidden");
     userNameEl.textContent = user.displayName || user.email;
     userRoleEl.textContent = "Chưa liên kết hồ sơ";
-    if (userFolderNotice) userFolderNotice.classList.add("hidden");
+
+    if (cardName) cardName.textContent = user.displayName || user.email;
+    if (cardRole) cardRole.textContent = "Nhấn vào đây để chọn tên trong danh sách 97 GV";
+    if (cardFolder) {
+      cardFolder.innerHTML = DOMPurify.sanitize(`
+        <button onclick="openIdentityBindingModal()" class="px-3 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold shadow">
+          Chọn tên của tôi
+        </button>
+      `);
+    }
   } else {
-    // Chưa đăng nhập
     loginBox.classList.remove("hidden");
     userBox.classList.add("hidden");
-    if (userFolderNotice) userFolderNotice.classList.add("hidden");
+
+    if (cardName) cardName.textContent = "Chưa Đăng Nhập";
+    if (cardRole) cardRole.textContent = "Bấm 'Đăng Nhập Google' để tự động nhận diện danh tính và thư mục Drive";
+    if (cardFolder) {
+      cardFolder.innerHTML = DOMPurify.sanitize(`
+        <span class="px-3 py-1 rounded-lg bg-slate-800 text-slate-500 text-xs font-mono">
+          📁 Đang chờ đăng nhập
+        </span>
+      `);
+    }
   }
 
   checkSubmissionStatusForCurrentTeacher();
 }
 
 /**
- * 5. KIỂM TRA QUYỀN ADMIN TỰ ĐỘNG THEO GMAIL
+ * 9. KIỂM TRA QUYỀN ADMIN TỰ ĐỘNG
  */
 function checkAdminRole(user) {
   if (!user || !user.email) return;
@@ -321,7 +461,77 @@ function checkAdminRole(user) {
 }
 
 /**
- * 6. XỬ LÝ CHỌN VÀ NÉN ẢNH CANVAS
+ * 10. RENDER LỊCH SỬ NỘP MINH CHỨNG CỦA GIÁO VIÊN
+ */
+function renderTeacherHistory() {
+  const container = document.getElementById("teacher-history-container");
+  if (!container) return;
+
+  const teacher = AppState.currentTeacher;
+  if (!teacher) {
+    container.textContent = "";
+    const notice = document.createElement("div");
+    notice.className = "text-xs text-slate-500 text-center py-4";
+    notice.textContent = "Đăng nhập Google để xem lịch sử minh chứng đã lưu.";
+    container.appendChild(notice);
+    return;
+  }
+
+  // Thu thập các cuộc thi giáo viên đã nộp
+  const historyList = [];
+  AppState.contests.forEach((c) => {
+    const raw = localStorage.getItem("CVA_SUBMISSIONS_" + c.id);
+    if (raw) {
+      try {
+        const subs = JSON.parse(raw);
+        if (subs[teacher.id]) {
+          historyList.push({
+            contestTitle: c.title,
+            submission: subs[teacher.id]
+          });
+        }
+      } catch {
+        // Safe fallback
+      }
+    }
+  });
+
+  container.textContent = "";
+
+  if (historyList.length === 0) {
+    const notice = document.createElement("div");
+    notice.className = "text-xs text-slate-500 text-center py-4";
+    notice.textContent = "Thầy/cô chưa nộp minh chứng nào.";
+    container.appendChild(notice);
+    return;
+  }
+
+  historyList.forEach((item) => {
+    const sub = item.submission;
+    const timeStr = new Date(sub.submittedAt).toLocaleDateString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit"
+    });
+
+    const el = document.createElement("div");
+    el.className = "p-3 rounded-xl bg-slate-900/90 border border-slate-800 flex items-center justify-between gap-2";
+    el.innerHTML = DOMPurify.sanitize(`
+      <div class="min-w-0 flex-1">
+        <div class="text-xs font-bold text-white truncate">${escapeHtml(item.contestTitle)}</div>
+        <div class="text-[10px] text-emerald-400 mt-0.5">✓ Đã nộp: ${timeStr}</div>
+      </div>
+      <a href="${sub.driveUrl || '#'}" target="_blank" class="px-2.5 py-1 rounded-lg bg-indigo-600/30 hover:bg-indigo-600 text-indigo-300 hover:text-white text-[11px] font-bold border border-indigo-500/40 transition whitespace-nowrap">
+        Xem ảnh
+      </a>
+    `);
+    container.appendChild(el);
+  });
+}
+
+/**
+ * 11. XỬ LÝ CHỌN VÀ NÉN ẢNH CANVAS
  */
 async function handleFileSelected(e) {
   const file = e.target.files && e.target.files[0];
@@ -336,7 +546,6 @@ async function handleFileSelected(e) {
     compressNotice.classList.remove("hidden");
     compressNotice.textContent = "⚡ Đang nén ảnh Canvas siêu tốc...";
 
-    // Gọi DriveService nén ảnh ngay trên trình duyệt
     const result = await DriveService.compressImage(file, 1600, 0.82);
     AppState.compressedImage = result;
 
@@ -346,7 +555,6 @@ async function handleFileSelected(e) {
 
     compressNotice.innerHTML = DOMPurify.sanitize(`✅ <strong>Nén thành công:</strong> ${sizeBeforeMb}MB → <span class="text-emerald-400 font-bold">${sizeAfterKb}KB</span> (Giảm ${savedPercent}% dung lượng, sắc nét 100%)`);
 
-    // Hiển thị ảnh xem trước
     previewImg.src = result.base64;
     previewBox.classList.remove("hidden");
     uploadPrompt.classList.add("hidden");
@@ -372,11 +580,11 @@ function resetImageUpload() {
 }
 
 /**
- * 7. GỬI MINH CHỨNG LÊN GOOGLE DRIVE & GHI NHẬN VÀO FIREBASE
+ * 12. GỬI MINH CHỨNG LÊN GOOGLE DRIVE & FIREBASE
  */
 async function handleSubmitEvidence() {
   if (!AppState.currentUser) {
-    alert("Vui lòng bấm 'Đăng nhập bằng Google' ở trên trước khi nộp bài!");
+    alert("Vui lòng bấm 'Đăng nhập Google (1 lần)' ở trên trước khi nộp bài!");
     return;
   }
 
@@ -386,7 +594,7 @@ async function handleSubmitEvidence() {
   }
 
   if (!AppState.compressedImage) {
-    alert("Vui lòng chọn hoặc chụp ảnh màn hình kết quả cuộc thi trước khi nộp!");
+    alert("Vui lòng chạm chọn ảnh chụp màn hình kết quả trước khi bấm gửi!");
     return;
   }
 
@@ -404,9 +612,9 @@ async function handleSubmitEvidence() {
   try {
     btnSubmit.disabled = true;
     progressShimmer.classList.remove("hidden");
-    submitStatusText.textContent = "⏳ Đang tải ảnh vào thư mục riêng trên Google Drive...";
+    submitStatusText.textContent = `⏳ Đang tải ảnh vào thư mục Drive: ${teacher.folderName}...`;
 
-    // 1. Tải ảnh lên Google Drive (vào đúng thư mục cá nhân của GV)
+    // 1. Tải ảnh lên Google Drive
     const driveResult = await DriveService.uploadEvidenceToDrive({
       teacherName: teacher.name,
       teacherStt: teacher.stt,
@@ -416,9 +624,9 @@ async function handleSubmitEvidence() {
       mimeType: AppState.compressedImage.mimeType
     });
 
-    submitStatusText.textContent = "⚡ Đang đồng bộ kết quả lên Firebase Realtime...";
+    submitStatusText.textContent = "⚡ Đang ghi nhận kết quả vào Firebase Realtime...";
 
-    // 2. Ghi nhận bản ghi nộp bài vào Firebase
+    // 2. Ghi nhận vào Firebase
     const fileData = driveResult.data || {};
     await FirebaseService.recordSubmission(contest.id, teacher.id, {
       teacherName: teacher.name,
@@ -431,13 +639,14 @@ async function handleSubmitEvidence() {
       thumbnailUrl: fileData.thumbnailUrl || ""
     });
 
-    // 3. Thông báo nộp thành công rực rỡ
+    // 3. Hoàn tất
     progressShimmer.classList.add("hidden");
     submitStatusText.textContent = "";
     btnSubmit.disabled = false;
 
     showSuccessModal(teacher, contest, fileData);
     resetImageUpload();
+    renderTeacherHistory();
 
   } catch (err) {
     console.error("Lỗi khi nộp minh chứng:", err);
@@ -449,7 +658,7 @@ async function handleSubmitEvidence() {
 }
 
 /**
- * 8. HIỂN THỊ MODAL THÔNG BÁO NỘP THÀNH CÔNG
+ * 13. HIỂN THỊ MODAL THÀNH CÔNG
  */
 function showSuccessModal(teacher, contest, fileData) {
   const modal = document.getElementById("modal-success");
@@ -459,32 +668,28 @@ function showSuccessModal(teacher, contest, fileData) {
 
   modalBody.innerHTML = DOMPurify.sanitize(`
     <div class="text-center space-y-4">
-      <div class="w-16 h-16 rounded-full bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-3xl flex items-center justify-center mx-auto animate-bounce">
+      <div class="w-16 h-16 rounded-2xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 text-3xl flex items-center justify-center mx-auto animate-bounce">
         ✓
       </div>
       <h3 class="text-xl font-bold text-white">Nộp Minh Chứng Thành Công!</h3>
-      <p class="text-sm text-slate-300">
+      <p class="text-xs text-slate-300">
         Chúc mừng thầy/cô <strong class="text-amber-400">${escapeHtml(teacher.name)}</strong> đã hoàn thành cuộc thi <em>"${escapeHtml(contest.title)}"</em>.
       </p>
-      <div class="p-4 rounded-xl bg-slate-900/80 border border-slate-800 text-left text-xs space-y-2">
+      <div class="p-3.5 rounded-xl bg-slate-900/90 border border-slate-800 text-left text-xs space-y-2">
         <div class="flex justify-between">
-          <span class="text-slate-400">Thời gian nộp:</span>
+          <span class="text-slate-400">Thời gian:</span>
           <span class="text-white font-medium">${new Date().toLocaleString("vi-VN")}</span>
         </div>
         <div class="flex justify-between">
           <span class="text-slate-400">Thư mục Drive:</span>
-          <span class="text-amber-400 font-mono">📁 ${escapeHtml(teacher.folderName)}</span>
-        </div>
-        <div class="flex justify-between">
-          <span class="text-slate-400">Tên file lưu:</span>
-          <span class="text-slate-300 font-mono">${escapeHtml(fileData.fileName || "evidence.jpg")}</span>
+          <span class="text-amber-400 font-mono font-bold">📁 ${escapeHtml(teacher.folderName)}</span>
         </div>
       </div>
-      <div class="pt-2 flex flex-col sm:flex-row gap-3">
-        <a href="${driveViewLink}" target="_blank" class="flex-1 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-sm text-center shadow-lg transition">
-          🔍 Xem Ảnh Trên Google Drive
+      <div class="pt-2 flex flex-col sm:flex-row gap-2.5">
+        <a href="${driveViewLink}" target="_blank" class="flex-1 py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-bold text-xs text-center shadow-lg transition">
+          🔍 Mở Ảnh Trên Google Drive
         </a>
-        <button onclick="document.getElementById('modal-success').classList.add('hidden')" class="py-3 px-6 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-sm transition">
+        <button onclick="document.getElementById('modal-success').classList.add('hidden')" class="py-3 px-5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-semibold text-xs transition">
           Đóng
         </button>
       </div>
@@ -495,7 +700,7 @@ function showSuccessModal(teacher, contest, fileData) {
 }
 
 /**
- * 9. MODAL LIÊN KẾT DANH TÍNH GMAIL <-> 97 GIÁO VIÊN (LÀM 1 LẦN DUY NHẤT)
+ * 14. MODAL LIÊN KẾT DANH TÍNH GMAIL 1-LẦN
  */
 function openIdentityBindingModal() {
   const modal = document.getElementById("modal-identity-binding");
@@ -512,7 +717,7 @@ function openIdentityBindingModal() {
     });
 
     if (filtered.length === 0) {
-      listContainer.innerHTML = DOMPurify.sanitize(`<div class="p-6 text-center text-sm text-slate-400">Không tìm thấy giáo viên phù hợp.</div>`);
+      listContainer.innerHTML = DOMPurify.sanitize(`<div class="p-6 text-center text-xs text-slate-400">Không tìm thấy giáo viên phù hợp.</div>`);
       return;
     }
 
@@ -521,8 +726,8 @@ function openIdentityBindingModal() {
       item.className = "p-3 rounded-xl bg-slate-800/80 hover:bg-indigo-600/30 border border-slate-700 flex items-center justify-between cursor-pointer transition";
       item.innerHTML = DOMPurify.sanitize(`
         <div>
-          <div class="font-bold text-white text-sm">${escapeHtml(t.name)}</div>
-          <div class="text-xs text-slate-400">${escapeHtml(t.role)} • STT: ${t.stt}</div>
+          <div class="font-bold text-white text-xs md:text-sm">${escapeHtml(t.name)}</div>
+          <div class="text-[11px] text-slate-400">${escapeHtml(t.role)} • STT: ${t.stt}</div>
         </div>
         <button class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-semibold shadow">
           Chọn tên này
@@ -530,11 +735,11 @@ function openIdentityBindingModal() {
       `);
 
       item.addEventListener("click", async () => {
-        if (confirm(`Xác nhận liên kết tài khoản Gmail (${AppState.currentUser.email}) với hồ sơ:\n${t.name} (${t.role})?`)) {
+        if (confirm(`Xác nhận liên kết tài khoản Gmail (${AppState.currentUser.email}) với:\n${t.name} (${t.role})?`)) {
           try {
             await FirebaseService.bindGmailToTeacher(AppState.currentUser, t.id);
             modal.classList.add("hidden");
-            alert(`Liên kết thành công! Từ nay hệ thống sẽ tự động nhận diện thầy/cô: ${t.name}`);
+            alert(`Liên kết thành công! Hệ thống đã ghi nhớ thầy/cô: ${t.name}`);
           } catch (err) {
             alert("Lỗi liên kết: " + err.message);
           }
@@ -555,7 +760,7 @@ function openIdentityBindingModal() {
 }
 
 /**
- * 10. RENDER BẢNG MA TRẬN 97 GV THỜI GIAN THỰC (ADMIN MATRIX)
+ * 15. RENDER BẢNG MA TRẬN 97 GV (ĐÃ KHẮC PHỤC HOÀN TOÀN LỖI CO CỤM)
  */
 function renderAdminMatrix() {
   const tableBody = document.getElementById("admin-matrix-tbody");
@@ -563,7 +768,6 @@ function renderAdminMatrix() {
 
   const submissions = AppState.submissions || {};
 
-  // Lọc theo từ khóa tìm kiếm và chức vụ
   const filtered = TEACHERS_DATABASE.filter((t) => {
     const matchQuery = !AppState.searchQuery ||
       t.name.toLowerCase().includes(AppState.searchQuery) ||
@@ -577,16 +781,16 @@ function renderAdminMatrix() {
   tableBody.textContent = "";
 
   let completedCount = 0;
-
   TEACHERS_DATABASE.forEach((t) => {
     if (submissions[t.id]) completedCount++;
   });
 
-  // Cập nhật số liệu thống kê ở đầu Dashboard
   updateDashboardStats(completedCount, TEACHERS_DATABASE.length);
 
   if (filtered.length === 0) {
-    tableBody.innerHTML = DOMPurify.sanitize(`<tr><td colspan="7" class="p-8 text-center text-slate-400">Không có dữ liệu phù hợp bộ lọc.</td></tr>`);
+    const emptyTr = document.createElement("tr");
+    emptyTr.innerHTML = safeTableSanitize(DOMPurify, `<td colspan="7" class="p-8 text-center text-slate-400 text-xs">Không có dữ liệu phù hợp bộ lọc.</td>`);
+    tableBody.appendChild(emptyTr);
     return;
   }
 
@@ -595,7 +799,6 @@ function renderAdminMatrix() {
     const isDone = Boolean(sub);
 
     const row = document.createElement("tr");
-    row.className = "border-b border-slate-800/60 hover:bg-slate-800/40 transition";
 
     const submitTime = isDone && sub.submittedAt
       ? new Date(sub.submittedAt).toLocaleTimeString("vi-VN", { hour: "2-digit", minute: "2-digit", day: "2-digit", month: "2-digit" })
@@ -603,29 +806,29 @@ function renderAdminMatrix() {
 
     const driveUrl = isDone ? (sub.driveUrl || sub.fileUrl || "#") : "#";
 
-    row.innerHTML = DOMPurify.sanitize(`
-      <td class="p-3 text-center text-xs font-mono text-slate-400">${t.stt}</td>
-      <td class="p-3 text-sm font-bold text-white teacher-name-col">${escapeHtml(t.name)}</td>
-      <td class="p-3 text-xs text-slate-300">
-        <span class="px-2 py-0.5 rounded-full ${t.role.includes('Hiệu') ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : t.role.includes('Tổ') ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-slate-800 text-slate-400'}">
+    row.innerHTML = safeTableSanitize(DOMPurify, `
+      <td class="text-center font-mono text-slate-400 text-xs" style="width: 50px;">${t.stt}</td>
+      <td class="col-teacher-name" style="width: 220px;">${escapeHtml(t.name)}</td>
+      <td style="width: 130px;">
+        <span class="px-2.5 py-1 rounded-full text-[11px] font-semibold ${t.role.includes('Hiệu') ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30' : t.role.includes('Tổ') ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-slate-800 text-slate-400'}">
           ${escapeHtml(t.role)}
         </span>
       </td>
-      <td class="p-3 text-center">
+      <td class="text-center" style="width: 140px;">
         ${isDone
-          ? `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 shadow-sm">
+          ? `<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-500/20 text-emerald-400 border border-emerald-500/40">
               ✓ Đã nộp
             </span>`
-          : `<span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
+          : `<span class="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold bg-rose-500/10 text-rose-400 border border-rose-500/20">
               Chưa nộp
             </span>`
         }
       </td>
-      <td class="p-3 text-xs text-slate-400 text-center">${submitTime}</td>
-      <td class="p-3 text-xs font-mono text-amber-300/80">${escapeHtml(t.folderName)}</td>
-      <td class="p-3 text-center">
+      <td class="text-center text-xs font-mono text-slate-400" style="width: 130px;">${submitTime}</td>
+      <td class="text-xs font-mono text-amber-300/90 font-medium" style="width: 220px;">📁 ${escapeHtml(t.folderName)}</td>
+      <td class="text-center" style="width: 120px;">
         ${isDone
-          ? `<a href="${driveUrl}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1 rounded-lg bg-indigo-600/40 hover:bg-indigo-600 text-indigo-200 hover:text-white text-xs font-semibold border border-indigo-500/30 transition">
+          ? `<a href="${driveUrl}" target="_blank" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-indigo-600/40 hover:bg-indigo-600 text-indigo-200 hover:text-white text-xs font-bold border border-indigo-500/30 transition">
               🔍 Xem ảnh
             </a>`
           : `<span class="text-xs text-slate-600">-</span>`
@@ -638,7 +841,7 @@ function renderAdminMatrix() {
 }
 
 /**
- * 11. CẬP NHẬT CHỈ SỐ THỐNG KÊ (DASHBOARD STATS)
+ * 16. CẬP NHẬT CHỈ SỐ DASHBOARD
  */
 function updateDashboardStats(completed, total) {
   const percent = total > 0 ? ((completed / total) * 100).toFixed(1) : "0.0";
@@ -658,7 +861,7 @@ function updateDashboardStats(completed, total) {
 }
 
 /**
- * 12. LẮNG NGHE SUBMISSIONS CỦA CUỘC THI ĐANG CHỌN
+ * 17. LẮNG NGHE SUBMISSIONS CỦA CUỘC THI ĐANG CHỌN
  */
 function refreshSubmissionsListener() {
   if (AppState.unsubscribeSubmissions) {
@@ -673,6 +876,7 @@ function refreshSubmissionsListener() {
     (submissionsMap) => {
       AppState.submissions = submissionsMap || {};
       checkSubmissionStatusForCurrentTeacher();
+      updateContestProgressRatio();
       if (AppState.activeTab === "admin_dashboard") {
         renderAdminMatrix();
       }
@@ -681,7 +885,7 @@ function refreshSubmissionsListener() {
 }
 
 /**
- * 13. KIỂM TRA TRẠNG THÁI NỘP CỦA GIÁO VIÊN ĐANG ĐĂNG NHẬP
+ * 18. KIỂM TRA TRẠNG THÁI NỘP CỦA GIÁO VIÊN
  */
 function checkSubmissionStatusForCurrentTeacher() {
   const teacher = AppState.currentTeacher;
@@ -699,16 +903,16 @@ function checkSubmissionStatusForCurrentTeacher() {
     statusBox.innerHTML = DOMPurify.sanitize(`
       <div class="p-4 rounded-xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-between gap-4">
         <div class="flex items-center gap-3">
-          <div class="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl font-bold">
+          <div class="w-10 h-10 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-xl font-bold shrink-0">
             ✓
           </div>
           <div>
-            <div class="text-sm font-bold text-white">Thầy/cô đã nộp minh chứng cuộc thi này</div>
-            <div class="text-xs text-emerald-300">Nộp lúc: ${timeStr} • Đã lưu vào Drive</div>
+            <div class="text-xs md:text-sm font-bold text-white">Thầy/cô đã nộp minh chứng cuộc thi này!</div>
+            <div class="text-[11px] text-emerald-300">Nộp lúc: ${timeStr} • Đã lưu vào Drive</div>
           </div>
         </div>
         <a href="${sub.driveUrl || '#'}" target="_blank" class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition whitespace-nowrap">
-          Xem lại ảnh
+          Xem ảnh
         </a>
       </div>
     `);
@@ -719,7 +923,7 @@ function checkSubmissionStatusForCurrentTeacher() {
 }
 
 /**
- * 14. RENDER SELECTOR CUỘC THI
+ * 19. RENDER SELECTOR CUỘC THI DROPDOWN
  */
 function renderContestSelectors() {
   const select = document.getElementById("select-contest");
@@ -737,35 +941,8 @@ function renderContestSelectors() {
   });
 }
 
-function updateContestDetailsBanner() {
-  const contest = AppState.contests.find((c) => c.id === AppState.selectedContestId);
-  const banner = document.getElementById("contest-banner-details");
-  if (!banner || !contest) return;
-
-  const deadlineStr = new Date(contest.deadline).toLocaleDateString("vi-VN", {
-    weekday: "long",
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric"
-  });
-
-  banner.innerHTML = DOMPurify.sanitize(`
-    <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 text-xs text-slate-300">
-      <div>
-        <span class="text-slate-400">Hạn chót nộp:</span> <strong class="text-amber-400">${deadlineStr}</strong>
-        ${contest.description ? `<p class="mt-1 text-slate-400">${escapeHtml(contest.description)}</p>` : ""}
-      </div>
-      ${contest.originalUrl ? `
-        <a href="${escapeHtml(contest.originalUrl)}" target="_blank" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-indigo-500/20 hover:bg-indigo-500/30 text-indigo-300 border border-indigo-500/40 font-semibold transition self-start md:self-auto">
-          🔗 Vào Đường Link Làm Bài Thi Gốc ↗
-        </a>
-      ` : ""}
-    </div>
-  `);
-}
-
 /**
- * 15. ĐÔN ĐỐC QUA ZALO 1-CHẠM
+ * 20. ĐÔN ĐỐC QUA ZALO 1-CHẠM
  */
 function handleZaloReminder() {
   const contest = AppState.contests.find((c) => c.id === AppState.selectedContestId);
@@ -777,14 +954,14 @@ function handleZaloReminder() {
   const msg = ExportService.generateZaloReminder(contest, missing);
 
   navigator.clipboard.writeText(msg).then(() => {
-    alert(`Đã sao chép nội dung đôn đốc (${missing.length} thầy/cô chưa nộp) vào bộ nhớ tạm!\n\nThầy/cô chỉ cần mở nhóm Zalo trường và nhấn Dán (Ctrl + V).`);
+    alert(`Đã sao chép danh sách (${missing.length} thầy/cô chưa nộp) vào bộ nhớ tạm!\n\nThầy/cô chỉ cần mở Zalo trường và nhấn Dán (Ctrl + V).`);
   }).catch(() => {
     prompt("Sao chép nội dung dưới đây để gửi vào Zalo:", msg);
   });
 }
 
 /**
- * 16. XUẤT BÁO CÁO EXCEL
+ * 21. XUẤT BÁO CÁO EXCEL
  */
 function handleExportExcel() {
   const contest = AppState.contests.find((c) => c.id === AppState.selectedContestId);
@@ -794,7 +971,7 @@ function handleExportExcel() {
 }
 
 /**
- * 17. MODAL TẠO CUỘC THI MỚI
+ * 22. MODAL TẠO CUỘC THI MỚI
  */
 function openCreateContestModal() {
   const modal = document.getElementById("modal-create-contest");
@@ -830,7 +1007,7 @@ function openCreateContestModal() {
 }
 
 /**
- * 18. MODAL CÀI ĐẶT CẤU HÌNH (SETTINGS MODAL)
+ * 23. MODAL CÀI ĐẶT HỆ THỐNG
  */
 function openSettingsModal() {
   const modal = document.getElementById("modal-settings");
@@ -855,13 +1032,12 @@ function openSettingsModal() {
       }
     };
     saveAppConfig(updated);
-    alert("Đã lưu cấu hình thành công! Ứng dụng sẽ tự động tải lại để áp dụng.");
+    alert("Đã lưu cấu hình thành công! Ứng dụng sẽ tải lại.");
     window.location.reload();
   };
 
-  // Nút Khởi tạo 97 thư mục Google Drive
   document.getElementById("btn-init-drive-folders").onclick = async () => {
-    if (!confirm("Hành động này sẽ gửi yêu cầu tới Google Apps Script để tự động tạo 97 thư mục cho từng giáo viên trên Google Drive của trường. Thầy/cô muốn tiếp tục?")) {
+    if (!confirm("Hành động này sẽ gửi yêu cầu tới Google Apps Script để tự động tạo 97 thư mục cho từng giáo viên trên Google Drive. Tiếp tục?")) {
       return;
     }
     try {
